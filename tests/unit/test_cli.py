@@ -323,15 +323,42 @@ class CliTest(unittest.TestCase):
             self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "old subtitle\n")
             adapter.download_subtitle.assert_not_called()
 
-    def test_export_command_accepts_core_options(self) -> None:
-        exit_code, stdout, stderr = self.run_cli(
-            ["export", "--input", "./data/subtitles", "--segments", "sentence", "--format", "jsonl"]
-        )
+    def test_export_command_writes_jsonl_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "abc123.en.manual.srt"
+            output_dir = root / "normalized"
+            subtitle_text = (FIXTURE_DIR / "sample.en.srt").read_text(encoding="utf-8")
+            subtitle_path.write_text(subtitle_text, encoding="utf-8")
 
-        self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr, "")
-        self.assertIn("Export command parsed.", stdout)
-        self.assertIn("Segments: sentence", stdout)
+            exit_code, stdout, stderr = self.run_cli(
+                [
+                    "export",
+                    "--input",
+                    str(subtitle_path),
+                    "--segments",
+                    "cue",
+                    "--format",
+                    "jsonl",
+                    "--out",
+                    str(output_dir),
+                ]
+            )
+
+            output_path = output_dir / "abc123.en.cue.jsonl"
+            records = [
+                json.loads(line)
+                for line in output_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn("Export complete.", stdout)
+            self.assertIn("Files exported: 1", stdout)
+            self.assertTrue(output_path.is_file())
+            self.assertEqual(records[0]["type"], "cue")
+            self.assertEqual(records[0]["video_id"], "abc123")
+            self.assertEqual(records[0]["language"], "en")
+            self.assertEqual(records[0]["source"], "manual")
 
     def test_export_requires_input(self) -> None:
         stderr = io.StringIO()

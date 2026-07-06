@@ -5,7 +5,8 @@ This document defines the planned `ytcap` CLI commands, flags, behavior rules, a
 Current implementation status:
 
 - `inspect` uses the `yt-dlp` adapter to emit metadata and subtitle availability summaries.
-- `video` and `export` have parser and validation skeletons.
+- `video` processes one video and writes normalized metadata plus selected subtitles.
+- `export` converts existing SRT/VTT subtitle files to cue-level or sentence-level JSONL.
 - Subtitle source selection for normalized tracks is implemented and tested.
 - Subtitle format validation for `srt` and `vtt` is implemented and tested.
 - Standard output directory layout creation, metadata JSON writing, and selected
@@ -13,7 +14,6 @@ Current implementation status:
 - SRT/VTT cue parsers, cue-level JSONL writer helpers, and basic
   sentence-level segmentation helpers are implemented and tested.
 - `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
-- `export` command wiring is planned for a later milestone.
 
 ## 1. General Command Shape
 
@@ -178,9 +178,7 @@ Rules:
 
 ## 5. `export` Command
 
-Status: parser skeleton implemented. SRT/VTT cue parsers, cue-level JSONL
-writer helpers, and basic sentence-level segmentation helpers are implemented,
-but this command is not wired to them yet.
+Status: implemented for existing SRT/VTT file or directory inputs.
 
 Purpose:
 
@@ -203,6 +201,27 @@ Options:
 | `--out` | Output directory | `./data/normalized` |
 | `--video-id` | Video ID override for a single file | Optional |
 | `--lang` | Language override | Optional |
+
+Rules:
+
+- `--input` may be one `.srt`/`.vtt` file or one directory.
+- Directory input is non-recursive and processes supported files sorted by path.
+- Unsupported files inside a directory are ignored.
+- A single unsupported file input returns `INVALID_INPUT`.
+- Directory input with no supported subtitle files returns `INVALID_INPUT`.
+- Output files are written as `{video_id}.{lang}.{segments}.jsonl` under
+  `--out`.
+- Existing output files are not overwritten by default.
+- The command validates target output paths and parses all selected subtitle
+  files before writing any JSONL, so duplicate target names, existing outputs,
+  or parse errors fail without partial writes.
+- `video_id`, language, and source are inferred from file names such as
+  `VIDEO_ID.en.manual.srt`.
+- `manual` and `auto` source markers are recognized case-insensitively.
+- If the file name omits source, JSONL records use `source` value `unknown`.
+- `--video-id` and `--lang` overrides are valid only for a single file input.
+- Directory input requires each subtitle file to provide at least
+  `VIDEO_ID.lang` in its file name.
 
 `cue` segments:
 

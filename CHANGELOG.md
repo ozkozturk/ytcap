@@ -22,6 +22,7 @@ The format follows the spirit of "Keep a Changelog".
 - Added `video` metadata JSON writing and selected SRT/VTT subtitle file download.
 - Added SRT/VTT cue parser helpers and a cue-level JSONL writer.
 - Added basic punctuation-based sentence segmentation and sentence-level JSONL writer helpers.
+- Added `export` command wiring for existing SRT/VTT files to cue-level or sentence-level JSONL.
 
 ### Changed
 
@@ -29,7 +30,7 @@ The format follows the spirit of "Keep a Changelog".
 
 ### Fixed
 
-- Nothing yet.
+- Prevented `export` from partially writing JSONL when duplicate target paths, existing outputs, or later parse errors are detected.
 
 ### Removed
 

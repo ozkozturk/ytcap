@@ -17,7 +17,7 @@ Currently implemented:
 - Importable Python package scaffold.
 - Package version exposed as `ytcap.__version__`.
 - Basic CLI entry point with `ytcap --help` and `ytcap --version`.
-- Parser and validation skeletons for `inspect`, `video`, and `export`.
+- CLI command structure for `inspect`, `video`, and `export`.
 - A `batch` placeholder that clearly reports the command is not implemented yet.
 - `yt-dlp` adapter support for `inspect` metadata extraction.
 - Normalized video metadata mapping and inspect JSON summary output.
@@ -26,6 +26,7 @@ Currently implemented:
 - Standard output directory layout creation for `video --out`.
 - `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
 - SRT/VTT cue parsing, cue-level JSONL writer helpers, and basic sentence-level segmentation helpers.
+- `export` command conversion of existing SRT/VTT files to cue-level or sentence-level JSONL.
 
 ## Core Decisions
 
@@ -81,8 +82,8 @@ availability summaries. The `video` command extracts metadata through
 `yt-dlp`, writes normalized metadata JSON, selects a matching subtitle track,
 and saves the selected SRT/VTT subtitle file. SRT/VTT cue parsers,
 cue-level JSONL writer helpers, and basic punctuation-based sentence
-segmentation helpers are implemented internally; wiring them into the
-`export` command is still pending.
+segmentation helpers are wired into the `export` command for existing
+subtitle files.
 
 ### Inspect One Video
 
@@ -127,6 +128,23 @@ When run without `--dry-run`, `video` writes normalized metadata to
 ```bash
 ytcap inspect --url "https://www.youtube.com/watch?v=VIDEO_ID" --list-subs
 ```
+
+### Convert Existing Subtitles to JSONL
+
+```bash
+ytcap export --input ./data/subtitles/VIDEO_ID.en.manual.srt --segments cue --out ./data/normalized
+```
+
+```bash
+ytcap export --input ./data/subtitles --segments sentence --out ./data/normalized
+```
+
+The `export` command reads existing `.srt` and `.vtt` files and writes JSONL
+records to `{video_id}.{lang}.{segments}.jsonl` under the output directory. It
+infers `video_id`, language, and source from names such as
+`VIDEO_ID.en.manual.srt`; when the source is missing, JSONL records use
+`"source":"unknown"`. `--video-id` and `--lang` may override metadata for a
+single file input.
 
 ### Process a Batch File
 

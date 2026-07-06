@@ -1,8 +1,14 @@
-"""Export command skeleton."""
+"""Export command."""
 
 from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
+
+from ytcap.app.export_subtitles import (
+    ExportSubtitlesOptions,
+    ExportSubtitlesResult,
+    export_subtitles,
+)
 
 
 def configure_parser(parser: ArgumentParser) -> None:
@@ -16,10 +22,30 @@ def configure_parser(parser: ArgumentParser) -> None:
 
 
 def handle(args: Namespace) -> int:
-    print("Export command parsed.")
+    result = export_subtitles(_options_from_args(args))
+    print("Export complete.")
     print(f"Input: {args.input}")
     print(f"Segments: {args.segments}")
     print(f"Output format: {args.format}")
     print(f"Output directory: {args.out}")
-    print("Subtitle parsing and JSONL export are not implemented yet.")
+    _print_result(result)
     return 0
+
+
+def _options_from_args(args: Namespace) -> ExportSubtitlesOptions:
+    return ExportSubtitlesOptions(
+        input_path=args.input,
+        segments=args.segments,
+        output_dir=args.out,
+        video_id=args.video_id,
+        language=args.lang,
+    )
+
+
+def _print_result(result: ExportSubtitlesResult) -> None:
+    print(f"Files exported: {len(result.files)}")
+    for item in result.files:
+        print(
+            f"JSONL written: {item.output_path} "
+            f"({item.segment_count} records, {item.video_id}/{item.language}/{item.source})"
+        )
