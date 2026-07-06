@@ -1,4 +1,4 @@
-"""Batch video processing use case."""
+"""Playlist processing use case."""
 
 from __future__ import annotations
 
@@ -7,34 +7,41 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from ytcap.app.existing_outputs import find_existing_video_output
-from ytcap.app.process_video import ProcessVideoOptions, process_video, VideoProcessingAdapter
+from ytcap.app.process_video import ProcessVideoOptions, VideoProcessingAdapter, process_video
 from ytcap.errors import ErrorCode, YtcapError
 from ytcap.exporters.failed_writer import append_failed_record
 from ytcap.exporters.json_writer import write_json_file
 from ytcap.exporters.output_paths import build_output_layout, ensure_output_layout
-from ytcap.services.batch_parser import parse_batch_file
 from ytcap.services.ytdlp_adapter import VideoSource
 
 
+class PlaylistProcessingAdapter(VideoProcessingAdapter, Protocol):
+    def extract_playlist_entries(self, source: VideoSource) -> list[VideoSource]:
+        ...
+
+
 @dataclass(frozen=True)
-class ProcessBatchOptions:
-    input: str | Path
+class ProcessPlaylistOptions:
+    url: str
     language: str
     source: str
     subtitle_format: str
     output_dir: str | Path
-    resume: bool = False
+    limit: int | None = None
+    start: int = 1
+    end: int | None = None
     skip_existing: bool = False
     fail_fast: bool = False
     max_errors: int | None = None
+    resume: bool = False
     dry_run: bool = False
 
 
 @dataclass(frozen=True)
-class ProcessBatchResult:
+class ProcessPlaylistResult:
     run_id: str
     started_at: str
     finished_at: str
@@ -45,7 +52,7 @@ class ProcessBatchResult:
     manifest_path: Path
 
 
-def _extract_video_id(source: VideoSource) -> str | None:
+def _extract_video_id_from_source(source: VideoSource) -> str | None:
     if source.video_id:
         return source.video_id
     if source.url:
@@ -55,19 +62,81 @@ def _extract_video_id(source: VideoSource) -> str | None:
     return None
 
 
-def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapter) -> ProcessBatchResult:
-    if options.max_errors is not None and options.max_errors < 1:
+def _apply_range(
+    entries: list[VideoSource],
+    *,
+    start: int = 1,
+    end: int | None = None,
+    limit: int | None = None,
+) -> list[VideoSource]:
+    if start > 1:
+        entries = entries[start - 1:]
+    if end is not None:
+        entries = entries[:end - start + 1]
+    if limit is not None and limit > 0:
+        entries = entries[:limit]
+    return entries
+
+
+def _matching_resume_manifest(options: ProcessPlaylistOptions, manifest_files: list[Path]) -> dict[str, Any] | None:
+    for manifest_path in sorted(manifest_files, reverse=True):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if _manifest_matches_playlist_options(manifest, options):
+            return manifest
+    return None
+
+
+def _manifest_matches_playlist_options(manifest: dict[str, Any], options: ProcessPlaylistOptions) -> bool:
+    if manifest.get("command") != "playlist":
+        return False
+
+    manifest_input = manifest.get("input")
+    if not isinstance(manifest_input, dict) or manifest_input.get("url") != options.url:
+        return False
+
+    manifest_options = manifest.get("options")
+    if not isinstance(manifest_options, dict):
+        return False
+
+    expected = {
+        "language": options.language,
+        "source": options.source,
+        "format": options.subtitle_format,
+        "limit": options.limit,
+        "start": options.start,
+        "end": options.end,
+    }
+    return all(manifest_options.get(key) == value for key, value in expected.items())
+
+
+def process_playlist(
+    options: ProcessPlaylistOptions,
+    *,
+    adapter: PlaylistProcessingAdapter,
+) -> ProcessPlaylistResult:
+    playlist_source = VideoSource(url=options.url)
+
+    entries = adapter.extract_playlist_entries(playlist_source)
+
+    if not entries:
         raise YtcapError(
             ErrorCode.INVALID_INPUT,
-            "--max-errors must be a positive integer",
+            "playlist did not contain any videos",
             exit_code=2,
         )
 
-    sources = parse_batch_file(options.input)
-    if not sources:
+    entry_count = len(entries)
+    entries = _apply_range(entries, start=options.start, end=options.end, limit=options.limit)
+    total = len(entries)
+
+    if total == 0:
         raise YtcapError(
             ErrorCode.INVALID_INPUT,
-            "batch input file did not contain any video URLs or IDs",
+            "range or limit resulted in zero videos to process",
             exit_code=2,
         )
 
@@ -78,28 +147,25 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
     run_id = started_at_str.replace(":", "-")
 
     completed_ids: set[str] = set()
-    prev_manifest: dict[str, Any] | None = None
     outputs: list[str] = []
     errors: list[dict[str, Any]] = []
 
-    total = len(sources)
     ok_count = 0
     skipped_count = 0
     failed_count = 0
 
     if options.resume:
-        manifest_files = sorted(layout.runs_dir.glob("*.manifest.json"))
-        if manifest_files:
-            latest_manifest_path = manifest_files[-1]
+        prev_manifest = _matching_resume_manifest(options, list(layout.runs_dir.glob("*.manifest.json")))
+        if prev_manifest is not None:
             try:
-                with open(latest_manifest_path, "r", encoding="utf-8") as f:
-                    prev_manifest = json.load(f)
                 run_id = prev_manifest.get("run_id", run_id)
                 started_at_str = prev_manifest.get("started_at", started_at_str)
-                outputs = prev_manifest.get("outputs", [])
+                prev_outputs = prev_manifest.get("outputs", [])
+                outputs = prev_outputs if isinstance(prev_outputs, list) else []
                 prev_summary = prev_manifest.get("summary", {})
-                ok_count = prev_summary.get("ok", 0)
-                skipped_count = prev_summary.get("skipped", 0)
+                if isinstance(prev_summary, dict):
+                    ok_count = prev_summary.get("ok", 0)
+                    skipped_count = prev_summary.get("skipped", 0)
 
                 for out_path in outputs:
                     name = Path(out_path).name
@@ -118,18 +184,22 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
             "run_id": run_id,
             "started_at": started_at_str,
             "finished_at": finished_at_str,
-            "command": "batch",
+            "command": "playlist",
             "input": {
-                "type": "file",
-                "path": str(options.input),
+                "type": "playlist",
+                "url": options.url,
             },
             "options": {
                 "language": options.language,
                 "source": options.source,
                 "format": options.subtitle_format,
                 "skip_existing": options.skip_existing,
+                "limit": options.limit,
+                "start": options.start,
+                "end": options.end,
             },
             "summary": {
+                "playlist_entries": entry_count,
                 "total": total,
                 "ok": ok_count,
                 "skipped": skipped_count,
@@ -141,24 +211,26 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
         write_json_file(manifest_path, manifest_data, overwrite=True)
 
     if options.dry_run:
-        for source in sources:
-            video_id = _extract_video_id(source) or "VIDEO_ID"
-            if video_id in completed_ids:
+        for source in entries:
+            video_id = _extract_video_id_from_source(source)
+            if video_id and video_id in completed_ids:
                 continue
-            existing_output = find_existing_video_output(
-                video_id,
-                layout=layout,
-                language=options.language,
-                source=options.source,
-                subtitle_format=options.subtitle_format,
-            )
-            if options.skip_existing and video_id != "VIDEO_ID" and existing_output is not None:
+            existing_output = None
+            if options.skip_existing and video_id:
+                existing_output = find_existing_video_output(
+                    video_id,
+                    layout=layout,
+                    language=options.language,
+                    source=options.source,
+                    subtitle_format=options.subtitle_format,
+                )
+            if existing_output is not None:
                 skipped_count += 1
             else:
                 ok_count += 1
 
         finished_at_str = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-        return ProcessBatchResult(
+        return ProcessPlaylistResult(
             run_id=run_id,
             started_at=started_at_str,
             finished_at=finished_at_str,
@@ -170,8 +242,8 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
         )
 
     try:
-        for source in sources:
-            video_id = _extract_video_id(source)
+        for source in entries:
+            video_id = _extract_video_id_from_source(source)
 
             if video_id and video_id in completed_ids:
                 continue
@@ -241,7 +313,7 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
                     write_manifest(datetime.now(UTC))
                     raise YtcapError(
                         ErrorCode.YTDLP_FAILED,
-                        f"batch aborted after reaching {options.max_errors} errors",
+                        f"playlist processing aborted after reaching {options.max_errors} errors",
                         exit_code=1,
                     )
             except Exception as exc:
@@ -273,7 +345,7 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
                     write_manifest(datetime.now(UTC))
                     raise YtcapError(
                         ErrorCode.YTDLP_FAILED,
-                        f"batch aborted after reaching {options.max_errors} errors",
+                        f"playlist processing aborted after reaching {options.max_errors} errors",
                         exit_code=1,
                     )
 
@@ -284,7 +356,7 @@ def process_batch(options: ProcessBatchOptions, *, adapter: VideoProcessingAdapt
             write_manifest(datetime.now(UTC))
 
     finished_at_str = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-    return ProcessBatchResult(
+    return ProcessPlaylistResult(
         run_id=run_id,
         started_at=started_at_str,
         finished_at=finished_at_str,

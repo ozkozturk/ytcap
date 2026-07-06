@@ -26,6 +26,9 @@ The format follows the spirit of "Keep a Changelog".
 - Added `batch` command for processing multiple video URLs or IDs from a text file, tracking execution metrics, and writing run manifests.
 - Added `failed_writer` helper for logging failed video processing attempts to `failed/failed.jsonl`.
 - Added `--resume` and `--skip-existing` support to the `batch` command for interrupted and incremental runs.
+- Added `playlist` command to process YouTube playlists using `yt-dlp` playlist flat extraction.
+- Added `--limit`, `--start`, and `--end` range controls to the `playlist` command.
+- Added run manifest generation, `--resume`, `--skip-existing`, `--fail-fast`, `--max-errors`, and `--dry-run` support to the `playlist` command.
 
 
 ### Changed
@@ -38,6 +41,9 @@ The format follows the spirit of "Keep a Changelog".
 - Prevented `export` from partially writing JSONL when duplicate target paths, existing outputs, or later parse errors are detected.
 - Prevented `batch --dry-run` from creating output directories.
 - Rejected non-positive `batch --max-errors` values with `INVALID_INPUT`.
+- Made playlist flat extraction handle bare video IDs and malformed playlist entries more defensively.
+- Made batch and playlist `--skip-existing` match the requested subtitle language, source, and format.
+- Made playlist `--resume` ignore unrelated batch manifests and playlist manifests with different URLs or range/output options.
 
 ### Removed
 

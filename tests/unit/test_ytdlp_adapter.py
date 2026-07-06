@@ -155,6 +155,101 @@ class YtDlpAdapterTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, ErrorCode.SUBTITLE_NOT_FOUND)
         self.assertEqual(raised.exception.exit_code, 4)
 
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_extract_playlist_entries_returns_video_sources(self, _which: object, run: object) -> None:
+        raw = {
+            "id": "PLabc123",
+            "title": "Test Playlist",
+            "entries": [
+                {"url": "abc12345678"},
+                {"id": "xyz98765432", "url": "https://www.youtube.com/watch?v=xyz98765432"},
+                {"id": "def55511122", "webpage_url": "https://www.youtube.com/watch?v=def55511122"},
+                {"id": "ghi66633344"},
+            ],
+        }
+        run.return_value = CompletedProcess(
+            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        )
+
+        result = YtDlpAdapter().extract_playlist_entries(
+            VideoSource(url="https://www.youtube.com/playlist?list=PLabc123")
+        )
+
+        self.assertEqual(len(result), 4)
+        self.assertEqual(result[0].video_id, "abc12345678")
+        self.assertIsNone(result[0].url)
+        self.assertEqual(result[1].video_id, "xyz98765432")
+        self.assertEqual(result[1].url, "https://www.youtube.com/watch?v=xyz98765432")
+        self.assertEqual(result[2].video_id, "def55511122")
+        self.assertEqual(result[2].url, "https://www.youtube.com/watch?v=def55511122")
+        self.assertEqual(result[3].video_id, "ghi66633344")
+        self.assertIsNone(result[3].url)
+
+        command = run.call_args.args[0]
+        self.assertIn("--flat-playlist", command)
+        self.assertIn("--skip-download", command)
+        self.assertIn("--dump-single-json", command)
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_extract_playlist_empty_returns_empty_list(self, _which: object, run: object) -> None:
+        raw = {"id": "PLempty", "entries": []}
+        run.return_value = CompletedProcess(
+            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        )
+
+        result = YtDlpAdapter().extract_playlist_entries(
+            VideoSource(url="https://www.youtube.com/playlist?list=PLempty")
+        )
+
+        self.assertEqual(result, [])
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_extract_playlist_invalid_entries_returns_parse_error(self, _which: object, run: object) -> None:
+        raw = {"id": "PLnoentries"}
+        run.return_value = CompletedProcess(
+            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        )
+
+        with self.assertRaises(YtcapError) as raised:
+            YtDlpAdapter().extract_playlist_entries(
+                VideoSource(url="https://www.youtube.com/playlist?list=PLnoentries")
+            )
+
+        self.assertEqual(raised.exception.code, ErrorCode.PARSE_FAILED)
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_extract_playlist_unusable_entries_return_parse_error(self, _which: object, run: object) -> None:
+        raw = {"id": "PLbad", "entries": [{"title": "missing id and URL"}, "bad entry"]}
+        run.return_value = CompletedProcess(
+            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        )
+
+        with self.assertRaises(YtcapError) as raised:
+            YtDlpAdapter().extract_playlist_entries(
+                VideoSource(url="https://www.youtube.com/playlist?list=PLbad")
+            )
+
+        self.assertEqual(raised.exception.code, ErrorCode.PARSE_FAILED)
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_extract_playlist_failure_returns_controlled_error(self, _which: object, run: object) -> None:
+        run.return_value = CompletedProcess(
+            args=["yt-dlp"], returncode=1, stdout="", stderr="playlist not found"
+        )
+
+        with self.assertRaises(YtcapError) as raised:
+            YtDlpAdapter().extract_playlist_entries(
+                VideoSource(url="https://www.youtube.com/playlist?list=PLprivate")
+            )
+
+        self.assertEqual(raised.exception.code, ErrorCode.YTDLP_FAILED)
+        self.assertEqual(raised.exception.message, "playlist not found")
+
 
 if __name__ == "__main__":
     unittest.main()

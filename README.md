@@ -27,6 +27,7 @@ Currently implemented:
 - `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
 - SRT/VTT cue parsing, cue-level JSONL writer helpers, and basic sentence-level segmentation helpers.
 - `export` command conversion of existing SRT/VTT files to cue-level or sentence-level JSONL.
+- `playlist` command to process videos inside a YouTube playlist with `--limit`, `--start`, and `--end` range controls, run manifest logging, `--resume`, `--skip-existing`, and `--dry-run`.
 
 ## Core Decisions
 
@@ -57,7 +58,6 @@ The MVP is intended to:
 
 Later releases may add:
 
-- Playlist processing.
 - A dedicated retry command for failed records.
 - PyPI publication.
 - Automated test and release workflows through GitHub Actions.
@@ -155,8 +155,9 @@ manifest under `runs/{run_id}.manifest.json` keeping track of execution
 statistics, output files, and errors. Failed attempts are appended to
 `failed/failed.jsonl`. `--resume` skips entries completed in the latest
 manifest and retries previous failures, while `--skip-existing` skips videos
-whose metadata and subtitle files already exist. `--dry-run` reports the batch
-plan without writing files or creating output directories.
+whose metadata and subtitle files already exist for the requested language,
+source, and format. `--dry-run` reports the batch plan without writing files or
+creating output directories.
 
 #### Batch Input File Format
 
@@ -171,6 +172,19 @@ Example input file:
 dQw4w9WgXcQ                  # Rick Astley - Never Gonna Give You Up
 https://youtu.be/jNQXAC9IVRw # Another video URL
 ```
+
+### Process a Playlist
+
+```bash
+ytcap playlist --url "https://www.youtube.com/playlist?list=PLAYLIST_ID" --start 1 --limit 50 --lang en --source any --format srt --out ./data
+```
+
+The `playlist` command uses `yt-dlp` flat playlist extraction to collect video
+entries without the official YouTube Data API, then processes each video with
+the same metadata and subtitle flow as `video`. `--start` is 1-based, `--end`
+is inclusive, and `--limit` caps the selected range. `--resume` continues only
+from a matching playlist run manifest, while `--skip-existing` skips videos
+only when matching metadata and subtitle files already exist.
 
 
 ## Output Layout

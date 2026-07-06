@@ -253,6 +253,57 @@ class TestProcessBatch(unittest.TestCase):
         self.assertEqual(result.ok, 1)
         self.assertEqual(result.skipped, 1)
 
+    def test_process_batch_skip_existing_requires_matching_language_source_and_format(self) -> None:
+        videos_dir = self.out_dir / "videos"
+        videos_dir.mkdir(parents=True, exist_ok=True)
+        meta_file = videos_dir / "abc12345678.info.json"
+
+        subtitles_dir = self.out_dir / "subtitles"
+        subtitles_dir.mkdir(parents=True, exist_ok=True)
+        sub_file = subtitles_dir / "abc12345678.en.manual.srt"
+        sub_file.write_text("existing subtitles", encoding="utf-8")
+
+        meta_data = {
+            "schema_version": "0.1",
+            "video": {"id": "abc12345678"},
+            "subtitles": [
+                {
+                    "language": "en",
+                    "source": "manual",
+                    "formats": ["srt"],
+                    "selected": True,
+                    "downloaded": True,
+                    "path": str(sub_file),
+                }
+            ]
+        }
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump(meta_data, f)
+
+        options = ProcessBatchOptions(
+            input=self.batch_file,
+            language="en",
+            source="auto",
+            subtitle_format="vtt",
+            output_dir=self.out_dir,
+            skip_existing=True,
+        )
+        adapter = FakeVideoProcessingAdapter(
+            metadata={
+                "id": "abc12345678",
+                "title": "Test Video",
+                "duration": 120,
+                "automatic_captions": {
+                    "en": [{"ext": "vtt"}],
+                },
+            }
+        )
+        result = process_batch(options, adapter=adapter)
+
+        self.assertEqual(result.total, 2)
+        self.assertEqual(result.ok, 2)
+        self.assertEqual(result.skipped, 0)
+
     def test_process_batch_skip_existing_metadata_only(self) -> None:
         videos_dir = self.out_dir / "videos"
         videos_dir.mkdir(parents=True, exist_ok=True)
@@ -323,6 +374,49 @@ class TestProcessBatch(unittest.TestCase):
         self.assertEqual(result.run_id, "2026-07-06T20-00-00Z")
         self.assertEqual(result.ok, 2)
         self.assertEqual(len(adapter.calls), 2)
+
+    def test_process_batch_resume_with_skip_existing_keeps_existing_behavior(self) -> None:
+        videos_dir = self.out_dir / "videos"
+        videos_dir.mkdir(parents=True, exist_ok=True)
+        meta_file = videos_dir / "abc12345678.info.json"
+
+        subtitles_dir = self.out_dir / "subtitles"
+        subtitles_dir.mkdir(parents=True, exist_ok=True)
+        sub_file = subtitles_dir / "abc12345678.en.manual.srt"
+        sub_file.write_text("existing subtitles", encoding="utf-8")
+
+        meta_data = {
+            "schema_version": "0.1",
+            "video": {"id": "abc12345678"},
+            "subtitles": [
+                {
+                    "language": "en",
+                    "source": "manual",
+                    "formats": ["srt"],
+                    "selected": True,
+                    "downloaded": True,
+                    "path": str(sub_file),
+                }
+            ]
+        }
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump(meta_data, f)
+
+        options = ProcessBatchOptions(
+            input=self.batch_file,
+            language="en",
+            source="any",
+            subtitle_format="srt",
+            output_dir=self.out_dir,
+            resume=True,
+            skip_existing=True,
+        )
+        adapter = FakeVideoProcessingAdapter()
+        result = process_batch(options, adapter=adapter)
+
+        self.assertEqual(result.total, 2)
+        self.assertEqual(result.ok, 1)
+        self.assertEqual(result.skipped, 1)
 
     def test_process_batch_resume_retries_failures_without_stale_errors(self) -> None:
         batch_file = self.out_dir / "retry.txt"

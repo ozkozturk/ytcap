@@ -15,6 +15,10 @@ Current implementation status:
   sentence-level segmentation helpers are implemented and tested.
 - `batch` processes text files of video URLs or IDs, writes run manifests, logs
   failures, and supports `--resume`, `--skip-existing`, and `--dry-run`.
+- `playlist` processes YouTube playlists by extracting video entries through
+  `yt-dlp`, with `--limit`, `--start`, and `--end` range controls.
+  Supports `--resume` or `--skip-existing`, `--fail-fast`, `--max-errors`,
+  and `--dry-run`.
 
 ## 1. General Command Shape
 
@@ -273,6 +277,9 @@ Rules:
   `--max-errors` is reached.
 - `--resume` skips entries already completed in the latest manifest and retries
   previous failures; the new manifest reflects the latest final state.
+- `--skip-existing` skips only when the existing metadata points to a downloaded
+  subtitle matching the requested `--lang`, `--source`, and `--format`.
+  `--source any` accepts either an existing manual or automatic subtitle.
 - Failed attempts are appended to `failed/failed.jsonl`.
 - `--dry-run` writes no files or directories and avoids metadata/subtitle
   extraction.
@@ -294,13 +301,13 @@ https://youtu.be/jNQXAC9IVRw # Another video URL
 
 ## 7. `playlist` Command
 
-Status: post-MVP target.
+Status: implemented.
 
 Purpose:
 
 - Process videos inside a playlist URL or ID.
 
-Target usage:
+Usage:
 
 ```bash
 ytcap playlist --url "https://www.youtube.com/playlist?list=PLAYLIST_ID" --limit 50 --lang en --source any --out ./data
@@ -313,12 +320,37 @@ Options:
 | `--url` | Playlist URL |
 | `--id` | Playlist ID |
 | `--limit` | Maximum number of videos to process |
-| `--start` | Start index |
-| `--end` | End index |
+| `--start` | Start index (1-based) |
+| `--end` | End index (inclusive) |
 | `--lang` | Subtitle language |
 | `--source` | `manual`, `auto`, `any` |
 | `--format` | `srt`, `vtt` |
 | `--out` | Output directory |
+| `--skip-existing` | Skip already processed videos |
+| `--fail-fast` | Stop at the first error |
+| `--max-errors` | Stop after the given number of errors |
+| `--resume` | Continue an interrupted run |
+| `--dry-run` | Show planned work without writing files |
+
+Rules:
+
+- `--url` and `--id` cannot be used together.
+- One of `--url` or `--id` is required.
+- `--start` is 1-based and must be a positive integer.
+- `--end` is inclusive and must be greater than or equal to `--start`.
+- `--limit` must be a positive integer when provided.
+- Playlist entries are fetched through `yt-dlp --flat-playlist`; the official
+  YouTube Data API is not used.
+- Range selection applies `--start` and `--end` first, then applies `--limit`.
+- `--skip-existing` skips only when the existing metadata points to a downloaded
+  subtitle matching the requested `--lang`, `--source`, and `--format`.
+  `--source any` accepts either an existing manual or automatic subtitle.
+- `--resume` continues only from the latest playlist manifest with the same
+  playlist URL and output-affecting options: `--lang`, `--source`, `--format`,
+  `--limit`, `--start`, and `--end`.
+- `--skip-existing` and `--resume` cannot be used together for `playlist`.
+- `--dry-run` writes no files or directories and avoids per-video
+  metadata/subtitle extraction.
 
 ## 8. Exit Code Policy
 
@@ -363,6 +395,7 @@ JSON format, when needed:
 | `--verbose` + `--quiet` | Error |
 | `--url` + `--id` | Error |
 | `--skip-existing` + `--overwrite` | Error |
+| `playlist --skip-existing` + `playlist --resume` | Error |
 | `--metadata-only` + `--subs-only` | Error |
 | Invalid `--source` | Error |
 | Invalid `--format` | Error |
