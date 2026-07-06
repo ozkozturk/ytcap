@@ -86,7 +86,14 @@ dist/
   ytcap-x.y.z-py3-none-any.whl
 ```
 
-Build tools may be needed as development dependencies. New dependencies should still be justified and approved before being added.
+To build these artifacts locally, use a virtual environment, install the
+development extra into that environment, and run the build module:
+
+```bash
+python -m pip install -e '.[dev]'
+python -m build
+python -m twine check dist/*
+```
 
 ## 6. TestPyPI Stage
 

@@ -110,6 +110,10 @@ class SubtitleSelectorTest(unittest.TestCase):
 
             self.assertEqual(raised.exception.code, ErrorCode.SUBTITLE_NOT_FOUND)
             self.assertEqual(raised.exception.exit_code, 4)
+            self.assertIsNotNone(raised.exception.details)
+            self.assertEqual(raised.exception.details.get("language"), case["language"])
+            self.assertEqual(raised.exception.details.get("source"), case["source"])
+            self.assertEqual(raised.exception.details.get("format"), case["subtitle_format"])
 
     def test_unsupported_format_raises_unsupported_format(self) -> None:
         with self.assertRaises(YtcapError) as raised:

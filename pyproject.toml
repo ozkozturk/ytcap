@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,8 @@ dynamic = ["version"]
 description = "Extract YouTube metadata and subtitles into JSON and JSONL outputs."
 readme = "README.md"
 requires-python = ">=3.11"
-license = {file = "LICENSE.md"}
+license = "MIT"
+license-files = ["LICENSE.md"]
 authors = [
   {name = "Özkan Öztürk"}
 ]
@@ -17,7 +18,6 @@ classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -27,6 +27,12 @@ classifiers = [
 ]
 dependencies = [
   "yt-dlp",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build",
+  "twine",
 ]
 
 [project.urls]

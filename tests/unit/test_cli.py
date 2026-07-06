@@ -142,6 +142,15 @@ class CliTest(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertIn("code: INVALID_INPUT", stderr)
 
+    def test_inspect_json_error_output(self) -> None:
+        exit_code, _, stderr = self.run_cli(["inspect", "--url", "https://example.test", "--id", "abc123", "--json"])
+
+        self.assertEqual(exit_code, 2)
+        payload = json.loads(stderr)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], "CONFLICTING_FLAGS")
+        self.assertIn("cannot be used together", payload["error"]["message"])
+
     def test_video_command_accepts_core_options(self) -> None:
         exit_code, stdout, stderr = self.run_cli(
             [

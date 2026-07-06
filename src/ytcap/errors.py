@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from enum import StrEnum
 
 
@@ -21,12 +22,34 @@ class ErrorCode(StrEnum):
 class YtcapError(Exception):
     """Base exception for controlled user-facing errors."""
 
-    def __init__(self, code: ErrorCode, message: str, exit_code: int = 1) -> None:
+    def __init__(
+        self,
+        code: ErrorCode,
+        message: str,
+        exit_code: int = 1,
+        details: dict[str, object] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.exit_code = exit_code
+        self.details = details
 
 
 def format_error(error: YtcapError) -> str:
     return f"error: {error.message}\ncode: {error.code.value}"
+
+
+def format_error_json(error: YtcapError) -> str:
+    error_payload: dict[str, object] = {
+        "code": error.code.value,
+        "message": error.message,
+    }
+    if error.details is not None:
+        error_payload["details"] = error.details
+
+    payload: dict[str, object] = {
+        "ok": False,
+        "error": error_payload,
+    }
+    return json.dumps(payload, ensure_ascii=False)

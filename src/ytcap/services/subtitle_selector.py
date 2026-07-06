@@ -38,6 +38,11 @@ def select_subtitle_track(
         ErrorCode.SUBTITLE_NOT_FOUND,
         f"subtitle not found for language '{language}', source '{source}', and format '{requested_format}'",
         exit_code=4,
+        details={
+            "language": language,
+            "source": source,
+            "format": requested_format,
+        },
     )
 
 

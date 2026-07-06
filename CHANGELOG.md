@@ -29,12 +29,16 @@ The format follows the spirit of "Keep a Changelog".
 - Added `playlist` command to process YouTube playlists using `yt-dlp` playlist flat extraction.
 - Added `--limit`, `--start`, and `--end` range controls to the `playlist` command.
 - Added run manifest generation, `--resume`, `--skip-existing`, `--fail-fast`, `--max-errors`, and `--dry-run` support to the `playlist` command.
+- Added JSON error output for controlled `inspect --json` errors.
+- Added a `ytcap[dev]` extra with release build and package-check tooling.
 
 
 ### Changed
 
 - Updated `batch --resume` so previous failures are retried and the run
   manifest reflects the latest final state.
+- Updated package license metadata to the current SPDX `license` and
+  `license-files` form.
 
 ### Fixed
 

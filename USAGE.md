@@ -73,7 +73,7 @@ Large batch or playlist runs can involve:
 - Removed videos
 - Videos without subtitles
 
-Later releases are expected to add:
+To manage these, the following options are supported:
 
 - `--resume`
 - `--skip-existing`
@@ -96,8 +96,6 @@ Do not commit the following to the repository:
 Initial limitations:
 
 - No advanced NLP sentence segmentation.
-- Playlist support is a post-MVP target.
-- Batch resume support is a post-MVP target.
 - Output is focused on JSON and JSONL.
 - No SQLite or database import support.
 

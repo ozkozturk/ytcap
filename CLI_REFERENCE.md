@@ -368,21 +368,24 @@ Rules:
 Human-readable format:
 
 ```text
-error: subtitle not found for language 'en' and source 'manual'
+error: subtitle not found for language 'en', source 'manual', and format 'srt'
 code: SUBTITLE_NOT_FOUND
 ```
 
-JSON format, when needed:
+JSON error output is used only for commands that expose JSON output. In the
+current CLI, controlled `inspect` errors use this shape when `--json` is
+provided; other commands continue to use the human-readable stderr format.
 
 ```json
 {
   "ok": false,
   "error": {
     "code": "SUBTITLE_NOT_FOUND",
-    "message": "subtitle not found for language 'en' and source 'manual'",
+    "message": "subtitle not found for language 'en', source 'manual', and format 'srt'",
     "details": {
       "language": "en",
-      "source": "manual"
+      "source": "manual",
+      "format": "srt"
     }
   }
 }

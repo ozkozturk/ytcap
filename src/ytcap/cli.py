@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from . import __version__
 from .commands import batch, export, inspect, playlist, video
-from .errors import ErrorCode, YtcapError, format_error
+from .errors import ErrorCode, YtcapError, format_error, format_error_json
 from .logging_config import configure_logging
 
 
@@ -65,10 +65,14 @@ def run(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
+    args = None
     try:
         args = parser.parse_args(argv)
         validate_args(args)
         return run(args)
     except YtcapError as exc:
-        print(format_error(exc), file=sys.stderr)
+        if args is not None and getattr(args, "json", False):
+            print(format_error_json(exc), file=sys.stderr)
+        else:
+            print(format_error(exc), file=sys.stderr)
         return exc.exit_code
