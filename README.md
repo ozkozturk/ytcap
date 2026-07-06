@@ -21,6 +21,7 @@ Currently implemented:
 - A `batch` placeholder that clearly reports the command is not implemented yet.
 - `yt-dlp` adapter support for `inspect` metadata extraction.
 - Normalized video metadata mapping and inspect JSON summary output.
+- Tested subtitle source selection for `manual`, `auto`, and `any` normalized tracks.
 
 ## Core Decisions
 
@@ -72,7 +73,8 @@ Later releases may add:
 
 These commands show the intended user experience. Some commands may not be implemented yet.
 The current `inspect` command uses `yt-dlp` for metadata and subtitle availability
-summaries. The `video` and `export` commands parse and validate options, but file
+summaries. The `video` and `export` commands parse and validate options, and
+subtitle source selection rules are implemented in the service layer, but file
 writing, subtitle download, and JSONL export are still pending.
 
 ### Inspect One Video
@@ -103,6 +105,10 @@ ytcap video --url "https://www.youtube.com/watch?v=VIDEO_ID" --lang en --source 
 | `--source any` | Try manual subtitles first, then automatic subtitles |
 | `--format srt` | Save subtitles as SRT |
 | `--out ./data` | Write outputs under `./data` |
+
+Implemented source selection behavior uses exact language and format matches:
+`manual` selects only manual subtitles, `auto` selects only automatic subtitles,
+and `any` tries manual first before falling back to automatic subtitles.
 
 ### List Available Subtitles
 
