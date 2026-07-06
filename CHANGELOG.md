@@ -39,6 +39,11 @@ The format follows the spirit of "Keep a Changelog".
   manifest reflects the latest final state.
 - Updated package license metadata to the current SPDX `license` and
   `license-files` form.
+- Updated the runtime extractor dependency to `yt-dlp>=2026.06.09` and added a
+  runtime version check before invoking `yt-dlp`.
+- Updated extractor command resolution to prefer the current Python
+  environment's `yt-dlp` module or sibling executable before falling back to
+  `PATH`.
 
 ### Fixed
 
@@ -48,6 +53,12 @@ The format follows the spirit of "Keep a Changelog".
 - Made playlist flat extraction handle bare video IDs and malformed playlist entries more defensively.
 - Made batch and playlist `--skip-existing` match the requested subtitle language, source, and format.
 - Made playlist `--resume` ignore unrelated batch manifests and playlist manifests with different URLs or range/output options.
+- Rejected unsafe dynamic output filename parts before path creation to prevent
+  path traversal from user input or extractor metadata.
+- Avoided leaving new partial metadata files behind when subtitle selection or
+  download fails.
+- Refreshed stale metadata when `--skip-existing` finds incomplete metadata but
+  the requested subtitle output can be completed.
 
 ### Removed
 

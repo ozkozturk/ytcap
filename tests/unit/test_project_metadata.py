@@ -17,7 +17,7 @@ class ProjectMetadataTest(unittest.TestCase):
 
         self.assertEqual(project["name"], "ytcap")
         self.assertEqual(project["requires-python"], ">=3.11")
-        self.assertEqual(project["dependencies"], ["yt-dlp"])
+        self.assertEqual(project["dependencies"], ["yt-dlp>=2026.06.09"])
         self.assertEqual(project["dynamic"], ["version"])
 
     def test_console_script_points_to_cli_main(self) -> None:

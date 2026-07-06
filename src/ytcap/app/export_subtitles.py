@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ytcap.errors import ErrorCode, YtcapError
 from ytcap.exporters.jsonl_writer import write_cue_jsonl_file, write_sentence_jsonl_file
+from ytcap.exporters.output_paths import normalized_file_path
 from ytcap.models.subtitle import SubtitleCue, SubtitleSentence
 from ytcap.services.subtitle_parser import parse_srt_file, parse_vtt_file
 from ytcap.services.subtitle_segmenter import segment_cues_into_sentences
@@ -139,7 +140,12 @@ def _export_jobs(
     jobs: list[_ExportSubtitleJob] = []
     for path in subtitle_files:
         metadata = _metadata_for_path(path, options=options)
-        output_path = output_dir / f"{metadata.video_id}.{metadata.language}.{options.segments}.jsonl"
+        output_path = normalized_file_path(
+            output_dir,
+            video_id=str(metadata.video_id),
+            language=str(metadata.language),
+            segments=options.segments,
+        )
         jobs.append(
             _ExportSubtitleJob(
                 input_path=path,

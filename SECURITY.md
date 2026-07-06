@@ -22,7 +22,20 @@ This project does not use the official YouTube Data API. It should not require A
 
 If a change requires API keys, OAuth tokens, or cookies, it must receive explicit maintainer approval before implementation.
 
-## 4. Reporting a Security Issue
+## 4. Extractor Version Baseline
+
+`ytcap` requires `yt-dlp>=2026.06.09` and checks the runtime extractor version
+before using it. Older `yt-dlp` versions are rejected because recent upstream
+security advisories affect subtitle and download-related filesystem behavior.
+
+## 5. Output Path Safety
+
+Dynamic filename parts from user input or extractor metadata are validated
+before output paths are created. Empty values, path separators, control
+characters, absolute paths, `.` and `..` are rejected to prevent path traversal
+outside the selected output directories.
+
+## 6. Reporting a Security Issue
 
 If you discover a security issue:
 
@@ -31,7 +44,7 @@ If you discover a security issue:
 3. Provide reproduction steps.
 4. Do not include sensitive information in a public issue.
 
-## 5. Safe Test Data
+## 7. Safe Test Data
 
 Test fixtures should be synthetic.
 

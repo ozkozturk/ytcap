@@ -14,7 +14,13 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from ytcap.errors import ErrorCode, YtcapError  # noqa: E402
-from ytcap.exporters.output_paths import OUTPUT_DIRECTORIES, build_output_layout, ensure_output_layout  # noqa: E402
+from ytcap.exporters.output_paths import (  # noqa: E402
+    OUTPUT_DIRECTORIES,
+    build_output_layout,
+    ensure_output_layout,
+    normalized_file_path,
+    safe_filename_part,
+)
 
 
 class OutputPathsTest(unittest.TestCase):
@@ -32,6 +38,27 @@ class OutputPathsTest(unittest.TestCase):
             Path("data/runs/2026-07-06T20-00-00Z.manifest.json"),
         )
         self.assertEqual(layout.failed_path(), Path("data/failed/failed.jsonl"))
+
+    def test_safe_filename_part_rejects_path_traversal_and_separators(self) -> None:
+        invalid_values = ["../escape", "a/b", "a\\b", "", ".", "..", "bad\nname"]
+
+        for value in invalid_values:
+            with self.subTest(value=value):
+                with self.assertRaises(YtcapError) as raised:
+                    safe_filename_part(value, field_name="video_id")
+
+                self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
+                self.assertEqual(raised.exception.exit_code, 2)
+
+    def test_layout_rejects_unsafe_dynamic_path_parts(self) -> None:
+        layout = build_output_layout(Path("data"))
+
+        with self.assertRaises(YtcapError):
+            layout.metadata_path("../escape")
+        with self.assertRaises(YtcapError):
+            layout.subtitle_path("abc123", "en/us", "manual", "srt")
+        with self.assertRaises(YtcapError):
+            normalized_file_path(Path("data/normalized"), video_id="abc123", language=".", segments="cue")
 
     def test_ensure_output_layout_creates_expected_directories(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

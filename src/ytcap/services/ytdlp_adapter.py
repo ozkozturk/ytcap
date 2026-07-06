@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import importlib.metadata
 import importlib.util
 import re
 import shutil
@@ -14,6 +15,10 @@ from pathlib import Path
 from typing import Any
 
 from ytcap.errors import ErrorCode, YtcapError
+
+
+MIN_YTDLP_VERSION = (2026, 6, 9)
+MIN_YTDLP_VERSION_TEXT = "2026.06.09"
 
 
 @dataclass(frozen=True)
@@ -32,6 +37,7 @@ class VideoSource:
 class YtDlpAdapter:
     def __init__(self, executable: str = "yt-dlp") -> None:
         self.executable = executable
+        self._validated_command_prefix: list[str] | None = None
 
     def is_available(self) -> bool:
         return self._command_prefix() is not None
@@ -190,6 +196,9 @@ class YtDlpAdapter:
         return destination
 
     def _require_command_prefix(self) -> list[str]:
+        if self._validated_command_prefix is not None:
+            return list(self._validated_command_prefix)
+
         command_prefix = self._command_prefix()
         if command_prefix is None:
             raise YtcapError(
@@ -197,21 +206,88 @@ class YtDlpAdapter:
                 "yt-dlp executable was not found",
                 exit_code=3,
             )
+        _ensure_supported_ytdlp_version(command_prefix)
+        self._validated_command_prefix = list(command_prefix)
         return command_prefix
 
     def _command_prefix(self) -> list[str] | None:
+        if self.executable == "yt-dlp":
+            sibling_executable = Path(sys.executable).with_name(self.executable)
+            if sibling_executable.exists():
+                return [str(sibling_executable)]
+
+            if importlib.util.find_spec("yt_dlp") is not None:
+                return [sys.executable, "-m", "yt_dlp"]
+
         executable_path = shutil.which(self.executable)
         if executable_path:
             return [executable_path]
 
-        sibling_executable = Path(sys.executable).with_name(self.executable)
-        if sibling_executable.exists():
-            return [str(sibling_executable)]
-
-        if self.executable == "yt-dlp" and importlib.util.find_spec("yt_dlp") is not None:
-            return [sys.executable, "-m", "yt_dlp"]
-
         return None
+
+
+def _ensure_supported_ytdlp_version(command_prefix: list[str]) -> None:
+    version_text = _yt_dlp_version(command_prefix)
+    parsed_version = _parse_yt_dlp_version(version_text)
+    if parsed_version < MIN_YTDLP_VERSION:
+        raise YtcapError(
+            ErrorCode.YTDLP_FAILED,
+            (
+                f"yt-dlp {version_text} is below the supported minimum "
+                f"{MIN_YTDLP_VERSION_TEXT}; please upgrade yt-dlp"
+            ),
+            exit_code=3,
+        )
+
+
+def _yt_dlp_version(command_prefix: list[str]) -> str:
+    if command_prefix == [sys.executable, "-m", "yt_dlp"]:
+        try:
+            return importlib.metadata.version("yt-dlp")
+        except importlib.metadata.PackageNotFoundError:
+            pass
+
+    try:
+        completed = subprocess.run(
+            [*command_prefix, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise YtcapError(
+            ErrorCode.YTDLP_NOT_AVAILABLE,
+            "yt-dlp executable was not found",
+            exit_code=3,
+        ) from exc
+
+    if completed.returncode != 0:
+        message = completed.stderr.strip() or "could not determine yt-dlp version"
+        raise YtcapError(ErrorCode.YTDLP_FAILED, message, exit_code=3)
+
+    version_text = completed.stdout.strip().splitlines()[0] if completed.stdout.strip() else ""
+    if not version_text:
+        raise YtcapError(
+            ErrorCode.YTDLP_FAILED,
+            "could not determine yt-dlp version",
+            exit_code=3,
+        )
+    return version_text
+
+
+def _parse_yt_dlp_version(version_text: str) -> tuple[int, int, int]:
+    match = re.search(r"(?P<year>\d{4})\.(?P<month>\d{1,2})\.(?P<day>\d{1,2})", version_text)
+    if match is None:
+        raise YtcapError(
+            ErrorCode.YTDLP_FAILED,
+            f"could not parse yt-dlp version '{version_text}'",
+            exit_code=3,
+        )
+    return (
+        int(match.group("year")),
+        int(match.group("month")),
+        int(match.group("day")),
+    )
 
 
 def _subtitle_write_flag(subtitle_source: str) -> str:

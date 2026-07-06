@@ -5,6 +5,7 @@ This document defines the planned `ytcap` CLI commands, flags, behavior rules, a
 Current implementation status:
 
 - `inspect` uses the `yt-dlp` adapter to emit metadata and subtitle availability summaries.
+- The adapter requires `yt-dlp>=2026.06.09` and rejects older runtime versions.
 - `video` processes one video and writes normalized metadata plus selected subtitles.
 - `export` converts existing SRT/VTT subtitle files to cue-level or sentence-level JSONL.
 - Subtitle source selection for normalized tracks is implemented and tested.
@@ -19,6 +20,8 @@ Current implementation status:
   `yt-dlp`, with `--limit`, `--start`, and `--end` range controls.
   Supports `--resume` or `--skip-existing`, `--fail-fast`, `--max-errors`,
   and `--dry-run`.
+- Dynamic output filename parts are validated before paths are built, so user
+  input or extractor metadata cannot escape the selected output directories.
 
 ## 1. General Command Shape
 
@@ -175,8 +178,17 @@ Rules:
 - Subtitle files are written to
   `subtitles/{video_id}.{lang}.{source}.{format}` unless `--metadata-only` is
   used.
+- Dynamic filename parts such as video ID, language, source, format, segment
+  type, and run ID must be non-empty single filename components; path
+  separators, absolute paths, control characters, `.` and `..` are rejected.
 - Existing metadata or subtitle outputs are not overwritten by default; use
   `--overwrite` to replace them or `--skip-existing` to leave them unchanged.
+- Metadata is written after subtitle selection and download succeed. If a
+  requested subtitle is unavailable, no new partial metadata file is left
+  behind unless `--metadata-only` was requested.
+- With `--skip-existing`, a complete matching metadata+subtitle pair skips the
+  video. If existing metadata is stale or incomplete but the subtitle can be
+  completed, metadata is refreshed after the subtitle step succeeds.
 - If a requested subtitle track is not available, the command returns
   `SUBTITLE_NOT_FOUND`.
 - `--dry-run` writes no files and avoids metadata/subtitle extraction.
@@ -216,6 +228,8 @@ Rules:
 - Directory input with no supported subtitle files returns `INVALID_INPUT`.
 - Output files are written as `{video_id}.{lang}.{segments}.jsonl` under
   `--out`.
+- Inferred or overridden `video_id` and language values must be safe filename
+  parts. Unsafe values return `INVALID_INPUT` before writing any output.
 - Existing output files are not overwritten by default.
 - The command validates target output paths and parses all selected subtitle
   files before writing any JSONL, so duplicate target names, existing outputs,

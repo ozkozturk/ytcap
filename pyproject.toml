@@ -26,7 +26,7 @@ classifiers = [
   "Topic :: Text Processing",
 ]
 dependencies = [
-  "yt-dlp",
+  "yt-dlp>=2026.06.09",
 ]
 
 [project.optional-dependencies]

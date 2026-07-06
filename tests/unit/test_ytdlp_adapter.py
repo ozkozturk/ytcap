@@ -19,6 +19,14 @@ from ytcap.errors import ErrorCode, YtcapError  # noqa: E402
 from ytcap.services.ytdlp_adapter import VideoSource, YtDlpAdapter  # noqa: E402
 
 
+def supported_version_process() -> CompletedProcess[str]:
+    return CompletedProcess(args=["yt-dlp", "--version"], returncode=0, stdout="2026.06.09\n", stderr="")
+
+
+def with_supported_version(result: CompletedProcess[str]) -> list[CompletedProcess[str]]:
+    return [supported_version_process(), result]
+
+
 class YtDlpAdapterTest(unittest.TestCase):
     def test_video_id_source_builds_watch_url(self) -> None:
         self.assertEqual(VideoSource(video_id="abc123").target(), "https://www.youtube.com/watch?v=abc123")
@@ -37,11 +45,56 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_extract_metadata_returns_raw_json(self, _which: object, run: object) -> None:
         raw = {"id": "abc123", "title": "Example"}
-        run.return_value = CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
+        )
 
         result = YtDlpAdapter().extract_metadata(VideoSource(url="https://example.test/watch?v=abc123"))
 
         self.assertEqual(result, raw)
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.Path.exists", return_value=True)
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_default_executable_prefers_sibling_over_path(
+        self,
+        _which: object,
+        _exists: object,
+        run: object,
+    ) -> None:
+        raw = {"id": "abc123", "title": "Example"}
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
+        )
+
+        result = YtDlpAdapter().extract_metadata(VideoSource(video_id="abc123"))
+
+        self.assertEqual(result, raw)
+        command = run.call_args.args[0]
+        self.assertEqual(command[0], str(Path(sys.executable).with_name("yt-dlp")))
+        self.assertNotEqual(command[0], "/usr/bin/yt-dlp")
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.importlib.metadata.version", return_value="2026.06.09")
+    @patch("ytcap.services.ytdlp_adapter.Path.exists", return_value=False)
+    @patch("ytcap.services.ytdlp_adapter.importlib.util.find_spec", return_value=object())
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_default_executable_prefers_installed_module_over_path(
+        self,
+        _which: object,
+        _find_spec: object,
+        _exists: object,
+        _metadata_version: object,
+        run: object,
+    ) -> None:
+        raw = {"id": "abc123", "title": "Example"}
+        run.return_value = CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
+
+        result = YtDlpAdapter().extract_metadata(VideoSource(video_id="abc123"))
+
+        self.assertEqual(result, raw)
+        command = run.call_args.args[0]
+        self.assertEqual(command[:3], [sys.executable, "-m", "yt_dlp"])
 
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.Path.exists", return_value=False)
@@ -66,7 +119,9 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_ytdlp_failure_returns_controlled_error(self, _which: object, run: object) -> None:
-        run.return_value = CompletedProcess(args=["yt-dlp"], returncode=1, stdout="", stderr="video unavailable")
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=1, stdout="", stderr="video unavailable")
+        )
 
         with self.assertRaises(YtcapError) as raised:
             YtDlpAdapter().extract_metadata(VideoSource(video_id="abc123"))
@@ -77,7 +132,9 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_invalid_json_returns_parse_error(self, _which: object, run: object) -> None:
-        run.return_value = CompletedProcess(args=["yt-dlp"], returncode=0, stdout="not json", stderr="")
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout="not json", stderr="")
+        )
 
         with self.assertRaises(YtcapError) as raised:
             YtDlpAdapter().extract_metadata(VideoSource(video_id="abc123"))
@@ -86,8 +143,22 @@ class YtDlpAdapterTest(unittest.TestCase):
 
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_old_ytdlp_version_returns_controlled_error(self, _which: object, run: object) -> None:
+        run.return_value = CompletedProcess(args=["yt-dlp", "--version"], returncode=0, stdout="2026.02.20\n", stderr="")
+
+        with self.assertRaises(YtcapError) as raised:
+            YtDlpAdapter().extract_metadata(VideoSource(video_id="abc123"))
+
+        self.assertEqual(raised.exception.code, ErrorCode.YTDLP_FAILED)
+        self.assertIn("below the supported minimum 2026.06.09", raised.exception.message)
+        self.assertEqual(run.call_count, 1)
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_download_subtitle_moves_generated_file(self, _which: object, run: object) -> None:
         def fake_run(command: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if command[-1] == "--version":
+                return supported_version_process()
             output_template = command[command.index("--output") + 1]
             temp_root = Path(output_template).parent
             (temp_root / "abc123.en.srt").write_text("subtitle text\n", encoding="utf-8")
@@ -119,6 +190,8 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_download_auto_subtitle_uses_auto_flag(self, _which: object, run: object) -> None:
         def fake_run(command: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if command[-1] == "--version":
+                return supported_version_process()
             output_template = command[command.index("--output") + 1]
             temp_root = Path(output_template).parent
             (temp_root / "abc123.en.vtt").write_text("WEBVTT\n", encoding="utf-8")
@@ -140,7 +213,9 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_download_subtitle_missing_output_returns_controlled_error(self, _which: object, run: object) -> None:
-        run.return_value = CompletedProcess(args=["yt-dlp"], returncode=0, stdout="", stderr="")
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout="", stderr="")
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.assertRaises(YtcapError) as raised:
@@ -168,8 +243,8 @@ class YtDlpAdapterTest(unittest.TestCase):
                 {"id": "ghi66633344"},
             ],
         }
-        run.return_value = CompletedProcess(
-            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
         )
 
         result = YtDlpAdapter().extract_playlist_entries(
@@ -195,8 +270,8 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_extract_playlist_empty_returns_empty_list(self, _which: object, run: object) -> None:
         raw = {"id": "PLempty", "entries": []}
-        run.return_value = CompletedProcess(
-            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
         )
 
         result = YtDlpAdapter().extract_playlist_entries(
@@ -209,8 +284,8 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_extract_playlist_invalid_entries_returns_parse_error(self, _which: object, run: object) -> None:
         raw = {"id": "PLnoentries"}
-        run.return_value = CompletedProcess(
-            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
         )
 
         with self.assertRaises(YtcapError) as raised:
@@ -224,8 +299,8 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_extract_playlist_unusable_entries_return_parse_error(self, _which: object, run: object) -> None:
         raw = {"id": "PLbad", "entries": [{"title": "missing id and URL"}, "bad entry"]}
-        run.return_value = CompletedProcess(
-            args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr=""
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=0, stdout=json.dumps(raw), stderr="")
         )
 
         with self.assertRaises(YtcapError) as raised:
@@ -238,8 +313,8 @@ class YtDlpAdapterTest(unittest.TestCase):
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_extract_playlist_failure_returns_controlled_error(self, _which: object, run: object) -> None:
-        run.return_value = CompletedProcess(
-            args=["yt-dlp"], returncode=1, stdout="", stderr="playlist not found"
+        run.side_effect = with_supported_version(
+            CompletedProcess(args=["yt-dlp"], returncode=1, stdout="", stderr="playlist not found")
         )
 
         with self.assertRaises(YtcapError) as raised:

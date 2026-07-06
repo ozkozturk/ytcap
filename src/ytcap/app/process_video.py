@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+from ytcap.app.existing_outputs import find_existing_video_output
 from ytcap.errors import ErrorCode, YtcapError
 from ytcap.exporters.json_writer import write_json_file
 from ytcap.exporters.output_paths import build_output_layout, ensure_output_layout
@@ -72,21 +73,40 @@ def process_video(options: ProcessVideoOptions, *, adapter: VideoProcessingAdapt
     wrote_metadata = False
     skipped_metadata = False
 
-    if metadata_path is not None:
-        wrote_metadata = write_json_file(
-            metadata_path,
-            metadata,
-            skip_existing=options.skip_existing,
-            overwrite=options.overwrite,
-        )
-        skipped_metadata = not wrote_metadata
-
     subtitle_path: Path | None = None
     selected_source: str | None = None
     wrote_subtitle = False
     skipped_subtitle = False
 
-    if not options.metadata_only:
+    if options.metadata_only:
+        if metadata_path is not None:
+            wrote_metadata = write_json_file(
+                metadata_path,
+                metadata,
+                skip_existing=options.skip_existing,
+                overwrite=options.overwrite,
+            )
+            skipped_metadata = not wrote_metadata
+    else:
+        if metadata_path is not None and options.skip_existing:
+            existing_output = find_existing_video_output(
+                video_id,
+                layout=layout,
+                language=options.language,
+                source=options.source,
+                subtitle_format=options.subtitle_format,
+            )
+            if existing_output is not None:
+                return ProcessVideoResult(
+                    video_id=video_id,
+                    metadata_path=metadata_path,
+                    subtitle_path=existing_output.subtitle_path,
+                    selected_source=None,
+                    subtitle_requested=True,
+                    skipped_metadata=True,
+                    skipped_subtitle=True,
+                )
+
         selected = select_subtitle_track(
             metadata["subtitles"],
             language=options.language,
@@ -95,6 +115,9 @@ def process_video(options: ProcessVideoOptions, *, adapter: VideoProcessingAdapt
         )
         selected_source = str(selected["source"])
         subtitle_path = layout.subtitle_path(video_id, options.language, selected_source, options.subtitle_format)
+
+        if metadata_path is not None:
+            _ensure_metadata_output_is_writable(metadata_path, options=options)
 
         if not _should_write_output(subtitle_path, options=options):
             skipped_subtitle = True
@@ -109,8 +132,9 @@ def process_video(options: ProcessVideoOptions, *, adapter: VideoProcessingAdapt
             wrote_subtitle = True
 
         _mark_selected_subtitle(metadata, selected, downloaded=True, path=subtitle_path)
-        if metadata_path is not None and not skipped_metadata:
+        if metadata_path is not None:
             write_json_file(metadata_path, metadata, overwrite=True)
+            wrote_metadata = True
 
     return ProcessVideoResult(
         video_id=video_id,
@@ -156,6 +180,16 @@ def _metadata_video_id(metadata: dict[str, Any], *, fallback: str | None) -> str
         ErrorCode.PARSE_FAILED,
         "extracted metadata did not include a video id",
         exit_code=3,
+    )
+
+
+def _ensure_metadata_output_is_writable(path: Path, *, options: ProcessVideoOptions) -> None:
+    if not path.exists() or options.skip_existing or options.overwrite:
+        return
+    raise YtcapError(
+        ErrorCode.OUTPUT_WRITE_FAILED,
+        f"output file already exists '{path}'; use --overwrite or --skip-existing",
+        exit_code=5,
     )
 
 

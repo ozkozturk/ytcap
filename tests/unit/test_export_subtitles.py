@@ -158,6 +158,49 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertEqual(result.files[0].source, "unknown")
             self.assertTrue((root / "normalized" / "abc123.tr.cue.jsonl").is_file())
 
+    def test_single_file_rejects_unsafe_video_id_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "input.srt"
+            subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+
+            with self.assertRaises(YtcapError) as raised:
+                export_subtitles(
+                    ExportSubtitlesOptions(
+                        input_path=subtitle_path,
+                        segments="cue",
+                        output_dir=root / "normalized",
+                        video_id="../escape",
+                        language="en",
+                    )
+                )
+
+            self.assertFalse((root / "escape.en.cue.jsonl").exists())
+
+        self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
+        self.assertIn("unsafe filename", raised.exception.message)
+
+    def test_directory_rejects_unsafe_inferred_filename_parts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            input_dir = root / "subtitles"
+            input_dir.mkdir()
+            (input_dir / "bad\\id.en.manual.srt").write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+
+            with self.assertRaises(YtcapError) as raised:
+                export_subtitles(
+                    ExportSubtitlesOptions(
+                        input_path=input_dir,
+                        segments="cue",
+                        output_dir=root / "normalized",
+                    )
+                )
+
+            self.assertFalse((root / "normalized").exists())
+
+        self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
+        self.assertIn("unsafe filename", raised.exception.message)
+
     def test_missing_input_returns_invalid_input(self) -> None:
         with self.assertRaises(YtcapError) as raised:
             export_subtitles(

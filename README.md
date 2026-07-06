@@ -28,6 +28,7 @@ Currently implemented:
 - SRT/VTT cue parsing, cue-level JSONL writer helpers, and basic sentence-level segmentation helpers.
 - `export` command conversion of existing SRT/VTT files to cue-level or sentence-level JSONL.
 - `playlist` command to process videos inside a YouTube playlist with `--limit`, `--start`, and `--end` range controls, run manifest logging, `--resume`, `--skip-existing`, and `--dry-run`.
+- Safe validation for dynamic output filename parts to prevent path traversal from user input or extractor metadata.
 
 ## Core Decisions
 
@@ -38,7 +39,7 @@ Currently implemented:
 | CLI approach | Standard library first: `argparse` |
 | Test approach | Standard library first: `unittest` |
 | YouTube Data API | Not used |
-| Metadata and subtitle extraction | `yt-dlp` is the core extractor dependency |
+| Metadata and subtitle extraction | `yt-dlp>=2026.06.09` is the core extractor dependency |
 | Video/audio downloads | Out of scope for the MVP |
 | Output format | JSON for metadata, JSONL for segment and sentence output |
 | Distribution target | PyPI and `pipx install ytcap` |
@@ -120,6 +121,8 @@ values return an `UNSUPPORTED_FORMAT` error before extraction work starts.
 When run without `--dry-run`, `video` writes normalized metadata to
 `videos/{video_id}.info.json` and the selected subtitle file to
 `subtitles/{video_id}.{lang}.{source}.{format}` under the output directory.
+If the requested subtitle cannot be selected or downloaded, the command returns
+a controlled error without leaving a new partial metadata file behind.
 
 ### List Available Subtitles
 
@@ -143,6 +146,10 @@ infers `video_id`, language, and source from names such as
 `VIDEO_ID.en.manual.srt`; when the source is missing, JSONL records use
 `"source":"unknown"`. `--video-id` and `--lang` may override metadata for a
 single file input.
+
+Dynamic filename parts such as video ID, language, source, format, segment type,
+and run ID are validated before paths are built. Empty values, path separators,
+control characters, absolute paths, `.` and `..` are rejected.
 
 ### Process a Batch File
 
@@ -235,8 +242,8 @@ source .venv/bin/activate
 python -m pip install -e .
 ```
 
-This installs `yt-dlp` as the runtime extractor dependency. Unit tests use
-fixtures and mocks instead of making real YouTube or network calls.
+This installs `yt-dlp>=2026.06.09` as the runtime extractor dependency. Unit
+tests use fixtures and mocks instead of making real YouTube or network calls.
 
 Smoke-test the current CLI:
 

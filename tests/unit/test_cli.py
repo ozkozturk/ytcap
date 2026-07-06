@@ -254,7 +254,7 @@ class CliTest(unittest.TestCase):
             adapter.download_subtitle.assert_not_called()
 
     @patch("ytcap.commands.video.YtDlpAdapter")
-    def test_video_missing_subtitle_returns_controlled_error_after_metadata(self, adapter_class: object) -> None:
+    def test_video_missing_subtitle_returns_controlled_error_without_metadata(self, adapter_class: object) -> None:
         adapter = configure_fake_video_adapter(adapter_class)
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -264,8 +264,46 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 4)
             self.assertIn("code: SUBTITLE_NOT_FOUND", stderr)
-            self.assertTrue((output_dir / "videos" / "abc123.info.json").is_file())
+            self.assertFalse((output_dir / "videos" / "abc123.info.json").exists())
             adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_missing_subtitle_retry_is_not_blocked_by_partial_metadata(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            first_exit_code, _, first_stderr = self.run_cli(
+                ["video", "--id", "abc123", "--lang", "de", "--out", str(output_dir)]
+            )
+            second_exit_code, _, second_stderr = self.run_cli(
+                ["video", "--id", "abc123", "--lang", "de", "--out", str(output_dir)]
+            )
+
+            self.assertEqual(first_exit_code, 4)
+            self.assertEqual(second_exit_code, 4)
+            self.assertIn("code: SUBTITLE_NOT_FOUND", first_stderr)
+            self.assertIn("code: SUBTITLE_NOT_FOUND", second_stderr)
+            self.assertFalse((output_dir / "videos" / "abc123.info.json").exists())
+            adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_rejects_unsafe_extracted_video_id(self, adapter_class: object) -> None:
+        metadata = sample_raw_metadata()
+        metadata["id"] = "../escape"
+        adapter_class.return_value.extract_metadata.return_value = metadata
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            exit_code, _, stderr = self.run_cli(["video", "--id", "abc123", "--out", str(output_dir)])
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn("code: INVALID_INPUT", stderr)
+            self.assertIn("unsafe filename", stderr)
+            self.assertFalse((output_dir / "escape.info.json").exists())
+            adapter_class.return_value.download_subtitle.assert_not_called()
 
     @patch("ytcap.commands.video.YtDlpAdapter")
     def test_video_existing_output_requires_overwrite_or_skip_existing(self, adapter_class: object) -> None:
@@ -326,9 +364,56 @@ class CliTest(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertEqual(stderr, "")
+            self.assertIn(f"Metadata written: {metadata_path}", stdout)
+            self.assertIn(f"Subtitle skipped: {subtitle_path}", stdout)
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            self.assertEqual(metadata["video"]["title"], "Example Video")
+            self.assertTrue(metadata["subtitles"][0]["downloaded"])
+            self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "old subtitle\n")
+            adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_skip_existing_complete_output_skips_without_rewriting(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            subtitle_path = output_dir / "subtitles" / "abc123.en.manual.srt"
+            metadata_path.parent.mkdir(parents=True)
+            subtitle_path.parent.mkdir(parents=True)
+            subtitle_path.write_text("old subtitle\n", encoding="utf-8")
+            metadata_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "0.1",
+                        "video": {"id": "abc123", "title": "Old title"},
+                        "subtitles": [
+                            {
+                                "language": "en",
+                                "source": "manual",
+                                "formats": ["srt"],
+                                "selected": True,
+                                "downloaded": True,
+                                "path": str(subtitle_path),
+                            }
+                        ],
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            exit_code, stdout, stderr = self.run_cli(
+                ["video", "--id", "abc123", "--out", str(output_dir), "--skip-existing"]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
             self.assertIn(f"Metadata skipped: {metadata_path}", stdout)
             self.assertIn(f"Subtitle skipped: {subtitle_path}", stdout)
-            self.assertEqual(metadata_path.read_text(encoding="utf-8"), "{}\n")
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            self.assertEqual(metadata["video"]["title"], "Old title")
             self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "old subtitle\n")
             adapter.download_subtitle.assert_not_called()
 

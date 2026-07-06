@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from ytcap.errors import ErrorCode, YtcapError
 
 
 OUTPUT_DIRECTORIES = ("videos", "subtitles", "normalized", "runs", "failed")
+SAFE_FILENAME_PART_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 @dataclass(frozen=True)
@@ -36,16 +38,24 @@ class OutputLayout:
         return self.root / "failed"
 
     def metadata_path(self, video_id: str) -> Path:
-        return self.videos_dir / f"{video_id}.info.json"
+        return self.videos_dir / f"{safe_filename_part(video_id, field_name='video_id')}.info.json"
 
     def subtitle_path(self, video_id: str, language: str, source: str, subtitle_format: str) -> Path:
-        return self.subtitles_dir / f"{video_id}.{language}.{source}.{subtitle_format}"
+        filename = ".".join(
+            [
+                safe_filename_part(video_id, field_name="video_id"),
+                safe_filename_part(language, field_name="language"),
+                safe_filename_part(source, field_name="source"),
+                safe_filename_part(subtitle_format, field_name="format"),
+            ]
+        )
+        return self.subtitles_dir / filename
 
     def normalized_path(self, video_id: str, language: str, segments: str) -> Path:
-        return self.normalized_dir / f"{video_id}.{language}.{segments}.jsonl"
+        return normalized_file_path(self.normalized_dir, video_id=video_id, language=language, segments=segments)
 
     def run_manifest_path(self, run_id: str) -> Path:
-        return self.runs_dir / f"{run_id}.manifest.json"
+        return self.runs_dir / f"{safe_filename_part(run_id, field_name='run_id')}.manifest.json"
 
     def failed_path(self) -> Path:
         return self.failed_dir / "failed.jsonl"
@@ -53,6 +63,44 @@ class OutputLayout:
 
 def build_output_layout(root: str | Path) -> OutputLayout:
     return OutputLayout(root=Path(root))
+
+
+def normalized_file_path(root: str | Path, *, video_id: str, language: str, segments: str) -> Path:
+    filename = ".".join(
+        [
+            safe_filename_part(video_id, field_name="video_id"),
+            safe_filename_part(language, field_name="language"),
+            safe_filename_part(segments, field_name="segments"),
+            "jsonl",
+        ]
+    )
+    return Path(root) / filename
+
+
+def safe_filename_part(value: str, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise YtcapError(
+            ErrorCode.INVALID_INPUT,
+            f"{field_name} must be a string safe for file names",
+            exit_code=2,
+        )
+    if not value or value in {".", ".."}:
+        _raise_unsafe_filename_part(value, field_name=field_name)
+    if Path(value).is_absolute() or "/" in value or "\\" in value:
+        _raise_unsafe_filename_part(value, field_name=field_name)
+    if any(ord(character) < 32 for character in value):
+        _raise_unsafe_filename_part(value, field_name=field_name)
+    if SAFE_FILENAME_PART_RE.fullmatch(value) is None:
+        _raise_unsafe_filename_part(value, field_name=field_name)
+    return value
+
+
+def _raise_unsafe_filename_part(value: str, *, field_name: str) -> None:
+    raise YtcapError(
+        ErrorCode.INVALID_INPUT,
+        f"{field_name} contains unsafe filename characters: {value!r}",
+        exit_code=2,
+    )
 
 
 def ensure_output_layout(root: str | Path) -> OutputLayout:
