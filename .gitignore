@@ -1,0 +1,246 @@
+# =============================================================================
+# ytcap .gitignore
+# =============================================================================
+# Public repository should contain source code, public documentation,
+# tests, examples, packaging configuration, license, changelog, and security notes.
+#
+# Local planning files, private notes, generated outputs, credentials,
+# caches, build artifacts, and machine-specific files should stay out of git.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# macOS / Finder files
+# -----------------------------------------------------------------------------
+
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+
+# -----------------------------------------------------------------------------
+# Local-only project workspace
+# -----------------------------------------------------------------------------
+# Keep private planning, drafts, temporary notes, and internal workflow files here.
+# These directories are intentionally broad so private file names do not need to
+# be listed in this file.
+
+docs/
+.local/
+.workspace/
+.scratch/
+
+
+# -----------------------------------------------------------------------------
+# Python bytecode / cache
+# -----------------------------------------------------------------------------
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+
+# -----------------------------------------------------------------------------
+# Python virtual environments
+# -----------------------------------------------------------------------------
+
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+
+# -----------------------------------------------------------------------------
+# Python packaging / build artifacts
+# -----------------------------------------------------------------------------
+
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+wheels/
+share/python-wheels/
+MANIFEST
+
+
+# -----------------------------------------------------------------------------
+# Python tool caches
+# -----------------------------------------------------------------------------
+
+.pybuilder/
+.tox/
+.nox/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.hypothesis/
+.dmypy.json
+dmypy.json
+
+
+# -----------------------------------------------------------------------------
+# Test and coverage output
+# -----------------------------------------------------------------------------
+
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+
+# -----------------------------------------------------------------------------
+# Local IDE / editor files
+# -----------------------------------------------------------------------------
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.launch
+
+
+# -----------------------------------------------------------------------------
+# Environment variables, credentials, cookies, and local secrets
+# -----------------------------------------------------------------------------
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+cookies.txt
+*.cookies.txt
+yt-dlp-cookies.txt
+
+token.json
+credentials.json
+secrets.json
+.secret
+secrets/
+
+
+# -----------------------------------------------------------------------------
+# ytcap runtime output
+# -----------------------------------------------------------------------------
+# Generated files should not be committed by default.
+# Curated examples should be placed under examples/ or tests/fixtures/.
+
+data/
+output/
+outputs/
+out/
+
+downloads/
+subtitles/
+subs/
+metadata/
+normalized/
+exports/
+failed/
+
+*.srt
+*.vtt
+*.ttml
+*.sbv
+*.jsonl
+
+
+# -----------------------------------------------------------------------------
+# ytcap local state, cache, and logs
+# -----------------------------------------------------------------------------
+
+.ytcap/
+.ytcap-cache/
+.ytcap-state.json
+.ytcap-state.*
+.cache/
+
+*.log
+logs/
+log/
+
+
+# -----------------------------------------------------------------------------
+# Temporary files
+# -----------------------------------------------------------------------------
+
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+
+
+# -----------------------------------------------------------------------------
+# Local archives and generated bundles
+# -----------------------------------------------------------------------------
+
+ytcap-docs.zip
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+
+# -----------------------------------------------------------------------------
+# OS / shell history accidentally created in repo
+# -----------------------------------------------------------------------------
+
+.bash_history
+.zsh_history
+
+
+# -----------------------------------------------------------------------------
+# Optional local Python version file
+# -----------------------------------------------------------------------------
+# Keep ignored unless you intentionally want to commit a pyenv-specific file.
+
+.python-version
+
+
+# -----------------------------------------------------------------------------
+# Keep public project files
+# -----------------------------------------------------------------------------
+
+!README.md
+!LICENSE
+!LICENSE.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!SECURITY.md
+!USAGE.md
+!CLI_REFERENCE.md
+!OUTPUT_FORMAT.md
+!RELEASE.md
+!pyproject.toml
+
+!src/
+!tests/
+!tests/fixtures/
+!examples/
