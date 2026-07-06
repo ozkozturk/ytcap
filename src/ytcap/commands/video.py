@@ -1,12 +1,13 @@
-"""Single-video command skeleton."""
+"""Single-video command."""
 
 from __future__ import annotations
 
 from argparse import ArgumentParser, Namespace
 
+from ytcap.app.process_video import ProcessVideoOptions, ProcessVideoResult, process_video
 from ytcap.errors import ErrorCode, YtcapError
-from ytcap.exporters.output_paths import ensure_output_layout
 from ytcap.services.subtitle_format import validate_subtitle_format
+from ytcap.services.ytdlp_adapter import YtDlpAdapter
 
 from .common import display_video_source, require_video_source
 
@@ -45,16 +46,51 @@ def validate_video_args(args: Namespace) -> None:
 
 def handle(args: Namespace) -> int:
     validate_video_args(args)
+    result = process_video(_options_from_args(args), adapter=YtDlpAdapter())
     print("Video command parsed.")
     print(f"Video source: {display_video_source(args)}")
     print(f"Language: {args.lang}")
     print(f"Subtitle source: {args.source}")
     print(f"Subtitle format: {args.format}")
     print(f"Output directory: {args.out}")
-    if args.dry_run:
-        print("Dry run: no files written.")
-    else:
-        ensure_output_layout(args.out)
-        print("Output directories prepared.")
-        print("Extraction integration is not implemented yet.")
+    _print_result(result)
     return 0
+
+
+def _options_from_args(args: Namespace) -> ProcessVideoOptions:
+    return ProcessVideoOptions(
+        url=args.url,
+        video_id=args.video_id,
+        language=args.lang,
+        source=args.source,
+        subtitle_format=args.format,
+        output_dir=args.out,
+        metadata_only=args.metadata_only,
+        subs_only=args.subs_only,
+        skip_existing=args.skip_existing,
+        overwrite=args.overwrite,
+        dry_run=args.dry_run,
+    )
+
+
+def _print_result(result: ProcessVideoResult) -> None:
+    if result.dry_run:
+        print("Dry run: no files written.")
+        if result.metadata_path is not None:
+            print(f"Metadata output: {result.metadata_path}")
+        if result.subtitle_path is not None:
+            print(f"Subtitle output: {result.subtitle_path}")
+        elif result.subtitle_requested and result.selected_source is None:
+            print("Subtitle output: selected after metadata inspection.")
+        return
+
+    print("Output directories prepared.")
+    if result.wrote_metadata:
+        print(f"Metadata written: {result.metadata_path}")
+    elif result.skipped_metadata:
+        print(f"Metadata skipped: {result.metadata_path}")
+
+    if result.wrote_subtitle:
+        print(f"Subtitle written: {result.subtitle_path}")
+    elif result.skipped_subtitle:
+        print(f"Subtitle skipped: {result.subtitle_path}")

@@ -19,6 +19,7 @@ The format follows the spirit of "Keep a Changelog".
 - Added tested subtitle source selection for `manual`, `auto`, and `any`.
 - Added controlled subtitle format validation for `srt` and `vtt`.
 - Added standard output directory layout helpers and `video --out` directory creation.
+- Added `video` metadata JSON writing and selected SRT/VTT subtitle file download.
 
 ### Changed
 

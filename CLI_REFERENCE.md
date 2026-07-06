@@ -8,9 +8,10 @@ Current implementation status:
 - `video` and `export` have parser and validation skeletons.
 - Subtitle source selection for normalized tracks is implemented and tested.
 - Subtitle format validation for `srt` and `vtt` is implemented and tested.
-- Standard output directory layout creation for `video --out` is implemented and tested.
+- Standard output directory layout creation, metadata JSON writing, and selected
+  subtitle file download for `video --out` are implemented and tested.
 - `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
-- Subtitle download, metadata/subtitle file output, and JSONL export are wired in later milestones.
+- JSONL export is wired in later milestones.
 
 ## 1. General Command Shape
 
@@ -117,9 +118,9 @@ Expected JSON output example:
 
 ## 4. `video` Command
 
-Status: parser and validation skeleton implemented; subtitle source and format
-selection implemented in the service layer; standard output directories are
-created; metadata and subtitle file processing pending.
+Status: implemented for single-video metadata JSON writing and selected SRT/VTT
+subtitle file download through the `yt-dlp` adapter. JSONL normalization is a
+later milestone.
 
 Purpose:
 
@@ -162,7 +163,16 @@ Rules:
   to be available on the selected track.
 - Non-dry-run `video` creates `videos/`, `subtitles/`, `normalized/`, `runs/`,
   and `failed/` under `--out`.
-- Subtitle download and metadata/subtitle file output are still pending.
+- Metadata JSON is written to `videos/{video_id}.info.json` unless
+  `--subs-only` is used.
+- Subtitle files are written to
+  `subtitles/{video_id}.{lang}.{source}.{format}` unless `--metadata-only` is
+  used.
+- Existing metadata or subtitle outputs are not overwritten by default; use
+  `--overwrite` to replace them or `--skip-existing` to leave them unchanged.
+- If a requested subtitle track is not available, the command returns
+  `SUBTITLE_NOT_FOUND`.
+- `--dry-run` writes no files and avoids metadata/subtitle extraction.
 
 ## 5. `export` Command
 

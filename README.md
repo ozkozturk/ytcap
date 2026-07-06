@@ -24,6 +24,7 @@ Currently implemented:
 - Tested subtitle source selection for `manual`, `auto`, and `any` normalized tracks.
 - Controlled subtitle format validation for `srt` and `vtt`.
 - Standard output directory layout creation for `video --out`.
+- `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
 
 ## Core Decisions
 
@@ -75,10 +76,9 @@ Later releases may add:
 
 These commands show the intended user experience. Some commands may not be implemented yet.
 The current `inspect` command uses `yt-dlp` for metadata and subtitle
-availability summaries. The `video` command parses and validates options,
-prepares the standard output directories, and has subtitle source and format
-selection helpers. Metadata file writing, subtitle download, and JSONL export
-are still pending.
+availability summaries. The `video` command extracts metadata through
+`yt-dlp`, writes normalized metadata JSON, selects a matching subtitle track,
+and saves the selected SRT/VTT subtitle file. JSONL export is still pending.
 
 ### Inspect One Video
 
@@ -114,6 +114,9 @@ Implemented source selection behavior uses exact language and format matches:
 and `any` tries manual first before falling back to automatic subtitles.
 Implemented subtitle format validation currently accepts `srt` and `vtt`; other
 values return an `UNSUPPORTED_FORMAT` error before extraction work starts.
+When run without `--dry-run`, `video` writes normalized metadata to
+`videos/{video_id}.info.json` and the selected subtitle file to
+`subtitles/{video_id}.{lang}.{source}.{format}` under the output directory.
 
 ### List Available Subtitles
 

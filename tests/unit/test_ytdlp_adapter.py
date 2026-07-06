@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -82,6 +83,77 @@ class YtDlpAdapterTest(unittest.TestCase):
             YtDlpAdapter().extract_metadata(VideoSource(video_id="abc123"))
 
         self.assertEqual(raised.exception.code, ErrorCode.PARSE_FAILED)
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_download_subtitle_moves_generated_file(self, _which: object, run: object) -> None:
+        def fake_run(command: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            output_template = command[command.index("--output") + 1]
+            temp_root = Path(output_template).parent
+            (temp_root / "abc123.en.srt").write_text("subtitle text\n", encoding="utf-8")
+            return CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+        run.side_effect = fake_run
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "abc123.en.manual.srt"
+
+            result = YtDlpAdapter().download_subtitle(
+                VideoSource(video_id="abc123"),
+                language="en",
+                subtitle_source="manual",
+                subtitle_format="srt",
+                output_path=output_path,
+            )
+
+            self.assertEqual(result, output_path)
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "subtitle text\n")
+
+        command = run.call_args.args[0]
+        self.assertIn("--write-subs", command)
+        self.assertIn("--sub-langs", command)
+        self.assertIn("--sub-format", command)
+        self.assertEqual(command[-1], "https://www.youtube.com/watch?v=abc123")
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_download_auto_subtitle_uses_auto_flag(self, _which: object, run: object) -> None:
+        def fake_run(command: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            output_template = command[command.index("--output") + 1]
+            temp_root = Path(output_template).parent
+            (temp_root / "abc123.en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+            return CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+        run.side_effect = fake_run
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            YtDlpAdapter().download_subtitle(
+                VideoSource(video_id="abc123"),
+                language="en",
+                subtitle_source="auto",
+                subtitle_format="vtt",
+                output_path=Path(temp_dir) / "abc123.en.auto.vtt",
+            )
+
+        self.assertIn("--write-auto-subs", run.call_args.args[0])
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_download_subtitle_missing_output_returns_controlled_error(self, _which: object, run: object) -> None:
+        run.return_value = CompletedProcess(args=["yt-dlp"], returncode=0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaises(YtcapError) as raised:
+                YtDlpAdapter().download_subtitle(
+                    VideoSource(video_id="abc123"),
+                    language="en",
+                    subtitle_source="manual",
+                    subtitle_format="srt",
+                    output_path=Path(temp_dir) / "abc123.en.manual.srt",
+                )
+
+        self.assertEqual(raised.exception.code, ErrorCode.SUBTITLE_NOT_FOUND)
+        self.assertEqual(raised.exception.exit_code, 4)
 
 
 if __name__ == "__main__":

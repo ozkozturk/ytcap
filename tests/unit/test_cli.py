@@ -28,6 +28,30 @@ def sample_raw_metadata() -> dict[str, object]:
     return json.loads((FIXTURE_DIR / "sample.info.json").read_text(encoding="utf-8"))
 
 
+def configure_fake_video_adapter(adapter_class: object) -> object:
+    adapter = adapter_class.return_value
+    adapter.extract_metadata.return_value = sample_raw_metadata()
+
+    def download_subtitle(
+        _source: object,
+        *,
+        language: str,
+        subtitle_source: str,
+        subtitle_format: str,
+        output_path: str | Path,
+    ) -> Path:
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            f"subtitle {language} {subtitle_source} {subtitle_format}\n",
+            encoding="utf-8",
+        )
+        return path
+
+    adapter.download_subtitle.side_effect = download_subtitle
+    return adapter
+
+
 class CliTest(unittest.TestCase):
     def run_cli(self, argv: list[str]) -> tuple[int, str, str]:
         stdout = io.StringIO()
@@ -162,7 +186,10 @@ class CliTest(unittest.TestCase):
         self.assertIn("unsupported subtitle format 'json'", stderr)
         self.assertIn("code: UNSUPPORTED_FORMAT", stderr)
 
-    def test_video_command_prepares_output_directories(self) -> None:
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_command_prepares_output_directories(self, adapter_class: object) -> None:
+        configure_fake_video_adapter(adapter_class)
+
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir) / "data"
 
@@ -173,6 +200,128 @@ class CliTest(unittest.TestCase):
             self.assertIn("Output directories prepared.", stdout)
             for directory_name in OUTPUT_DIRECTORIES:
                 self.assertTrue((output_dir / directory_name).is_dir())
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_command_writes_metadata_and_subtitle(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            exit_code, stdout, stderr = self.run_cli(["video", "--id", "abc123", "--out", str(output_dir)])
+
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            subtitle_path = output_dir / "subtitles" / "abc123.en.manual.srt"
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn(f"Metadata written: {metadata_path}", stdout)
+            self.assertIn(f"Subtitle written: {subtitle_path}", stdout)
+            self.assertTrue(metadata_path.is_file())
+            self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "subtitle en manual srt\n")
+
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            tracks = {(item["language"], item["source"]): item for item in metadata["subtitles"]}
+            self.assertTrue(tracks[("en", "manual")]["selected"])
+            self.assertTrue(tracks[("en", "manual")]["downloaded"])
+            self.assertEqual(tracks[("en", "manual")]["path"], str(subtitle_path))
+            adapter.download_subtitle.assert_called_once()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_metadata_only_writes_no_subtitle(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            exit_code, stdout, stderr = self.run_cli(
+                ["video", "--id", "abc123", "--out", str(output_dir), "--metadata-only"]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn("Metadata written:", stdout)
+            self.assertTrue((output_dir / "videos" / "abc123.info.json").is_file())
+            self.assertFalse((output_dir / "subtitles" / "abc123.en.manual.srt").exists())
+            adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_missing_subtitle_returns_controlled_error_after_metadata(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            exit_code, _, stderr = self.run_cli(["video", "--id", "abc123", "--lang", "de", "--out", str(output_dir)])
+
+            self.assertEqual(exit_code, 4)
+            self.assertIn("code: SUBTITLE_NOT_FOUND", stderr)
+            self.assertTrue((output_dir / "videos" / "abc123.info.json").is_file())
+            adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_existing_output_requires_overwrite_or_skip_existing(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            metadata_path.parent.mkdir(parents=True)
+            metadata_path.write_text("{}\n", encoding="utf-8")
+
+            exit_code, _, stderr = self.run_cli(["video", "--id", "abc123", "--out", str(output_dir)])
+
+            self.assertEqual(exit_code, 5)
+            self.assertIn("use --overwrite or --skip-existing", stderr)
+            self.assertIn("code: OUTPUT_WRITE_FAILED", stderr)
+            adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_overwrite_replaces_existing_outputs(self, adapter_class: object) -> None:
+        configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            subtitle_path = output_dir / "subtitles" / "abc123.en.manual.srt"
+            metadata_path.parent.mkdir(parents=True)
+            subtitle_path.parent.mkdir(parents=True)
+            metadata_path.write_text("{}\n", encoding="utf-8")
+            subtitle_path.write_text("old subtitle\n", encoding="utf-8")
+
+            exit_code, _, stderr = self.run_cli(
+                ["video", "--id", "abc123", "--out", str(output_dir), "--overwrite"]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "subtitle en manual srt\n")
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            self.assertEqual(metadata["video"]["title"], "Example Video")
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_skip_existing_leaves_existing_outputs(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            subtitle_path = output_dir / "subtitles" / "abc123.en.manual.srt"
+            metadata_path.parent.mkdir(parents=True)
+            subtitle_path.parent.mkdir(parents=True)
+            metadata_path.write_text("{}\n", encoding="utf-8")
+            subtitle_path.write_text("old subtitle\n", encoding="utf-8")
+
+            exit_code, stdout, stderr = self.run_cli(
+                ["video", "--id", "abc123", "--out", str(output_dir), "--skip-existing"]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn(f"Metadata skipped: {metadata_path}", stdout)
+            self.assertIn(f"Subtitle skipped: {subtitle_path}", stdout)
+            self.assertEqual(metadata_path.read_text(encoding="utf-8"), "{}\n")
+            self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "old subtitle\n")
+            adapter.download_subtitle.assert_not_called()
 
     def test_export_command_accepts_core_options(self) -> None:
         exit_code, stdout, stderr = self.run_cli(
