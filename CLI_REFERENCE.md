@@ -2,6 +2,13 @@
 
 This document defines the planned `ytcap` CLI commands, flags, behavior rules, and error cases.
 
+Current implementation status:
+
+- `inspect` uses the `yt-dlp` adapter to emit metadata and subtitle availability summaries.
+- `video` and `export` have parser and validation skeletons.
+- `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
+- Subtitle download, file output, and JSONL export are wired in later milestones.
+
 ## 1. General Command Shape
 
 ```bash
@@ -49,6 +56,8 @@ INVALID_INPUT
 ```
 
 ## 3. `inspect` Command
+
+Status: implemented for metadata and subtitle availability summaries through the `yt-dlp` adapter.
 
 Purpose:
 
@@ -105,6 +114,8 @@ Expected JSON output example:
 
 ## 4. `video` Command
 
+Status: parser and validation skeleton implemented; metadata and subtitle processing pending.
+
 Purpose:
 
 - Process one video.
@@ -144,6 +155,8 @@ Rules:
 
 ## 5. `export` Command
 
+Status: parser skeleton implemented; subtitle parsing and JSONL writing pending.
+
 Purpose:
 
 - Convert existing subtitle files into JSONL output.
@@ -178,7 +191,7 @@ Options:
 
 ## 6. `batch` Command
 
-Status: post-MVP target.
+Status: post-MVP target. The current CLI registers this command as a placeholder and returns `NOT_IMPLEMENTED`.
 
 Purpose:
 
@@ -202,6 +215,7 @@ Options:
 | `--skip-existing` | Skip existing outputs |
 | `--fail-fast` | Stop at the first error |
 | `--max-errors` | Stop after the given number of errors |
+| `--out` | Output directory |
 
 ## 7. `playlist` Command
 
@@ -271,6 +285,7 @@ JSON format, when needed:
 
 | Combination | Behavior |
 |---|---|
+| `--verbose` + `--quiet` | Error |
 | `--url` + `--id` | Error |
 | `--skip-existing` + `--overwrite` | Error |
 | `--metadata-only` + `--subs-only` | Error |

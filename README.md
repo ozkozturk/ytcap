@@ -12,6 +12,16 @@ This repository is in an early planning and implementation stage. The first targ
 0.1.0
 ```
 
+Currently implemented:
+
+- Importable Python package scaffold.
+- Package version exposed as `ytcap.__version__`.
+- Basic CLI entry point with `ytcap --help` and `ytcap --version`.
+- Parser and validation skeletons for `inspect`, `video`, and `export`.
+- A `batch` placeholder that clearly reports the command is not implemented yet.
+- `yt-dlp` adapter support for `inspect` metadata extraction.
+- Normalized video metadata mapping and inspect JSON summary output.
+
 ## Core Decisions
 
 | Decision | Target |
@@ -61,6 +71,9 @@ Later releases may add:
 ## Planned CLI Examples
 
 These commands show the intended user experience. Some commands may not be implemented yet.
+The current `inspect` command uses `yt-dlp` for metadata and subtitle availability
+summaries. The `video` and `export` commands parse and validate options, but file
+writing, subtitle download, and JSONL export are still pending.
 
 ### Inspect One Video
 
@@ -103,7 +116,8 @@ ytcap inspect --url "https://www.youtube.com/watch?v=VIDEO_ID" --list-subs
 ytcap batch --input videos.txt --lang en --source any --format srt --resume --skip-existing --out ./data
 ```
 
-This command is a later release target.
+This command is a later release target. The current placeholder returns a clear
+not-implemented error.
 
 ## Planned Output Layout
 
@@ -131,6 +145,26 @@ data/
 | `RELEASE.md` | Packaging and release process |
 | `CONTRIBUTING.md` | Contributor expectations |
 | `SECURITY.md` | Security policy and sensitive data rules |
+
+## Development Install
+
+For local development, use Python 3.11 or newer:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+```
+
+This installs `yt-dlp` as the runtime extractor dependency. Unit tests use
+fixtures and mocks instead of making real YouTube or network calls.
+
+Smoke-test the current CLI:
+
+```bash
+ytcap --help
+ytcap --version
+```
 
 ## Installation Target
 

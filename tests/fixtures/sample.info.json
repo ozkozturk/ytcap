@@ -1,0 +1,31 @@
+{
+  "id": "abc123",
+  "webpage_url": "https://www.youtube.com/watch?v=abc123",
+  "title": "Example Video",
+  "description": "Example description",
+  "duration": 320,
+  "duration_string": "5:20",
+  "upload_date": "20260101",
+  "timestamp": 1767225600,
+  "channel_id": "channel123",
+  "channel": "Example Channel",
+  "channel_url": "https://www.youtube.com/channel/channel123",
+  "availability": "public",
+  "live_status": "not_live",
+  "thumbnail": "https://example.com/thumb.jpg",
+  "tags": ["example", "video"],
+  "subtitles": {
+    "en": [
+      {"ext": "vtt", "url": "https://example.com/en.vtt"},
+      {"ext": "srt", "url": "https://example.com/en.srt"}
+    ]
+  },
+  "automatic_captions": {
+    "en": [
+      {"ext": "vtt", "url": "https://example.com/en-auto.vtt"}
+    ],
+    "tr": [
+      {"ext": "vtt", "url": "https://example.com/tr-auto.vtt"}
+    ]
+  }
+}
