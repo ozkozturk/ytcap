@@ -22,6 +22,7 @@ Currently implemented:
 - `yt-dlp` adapter support for `inspect` metadata extraction.
 - Normalized video metadata mapping and inspect JSON summary output.
 - Tested subtitle source selection for `manual`, `auto`, and `any` normalized tracks.
+- Controlled subtitle format validation for `srt` and `vtt`.
 
 ## Core Decisions
 
@@ -109,6 +110,8 @@ ytcap video --url "https://www.youtube.com/watch?v=VIDEO_ID" --lang en --source 
 Implemented source selection behavior uses exact language and format matches:
 `manual` selects only manual subtitles, `auto` selects only automatic subtitles,
 and `any` tries manual first before falling back to automatic subtitles.
+Implemented subtitle format validation currently accepts `srt` and `vtt`; other
+values return an `UNSUPPORTED_FORMAT` error before extraction work starts.
 
 ### List Available Subtitles
 

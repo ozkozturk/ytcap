@@ -153,6 +153,13 @@ class CliTest(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertIn("code: CONFLICTING_FLAGS", stderr)
 
+    def test_video_rejects_unsupported_subtitle_format(self) -> None:
+        exit_code, _, stderr = self.run_cli(["video", "--id", "abc123", "--format", "json"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("unsupported subtitle format 'json'", stderr)
+        self.assertIn("code: UNSUPPORTED_FORMAT", stderr)
+
     def test_export_command_accepts_core_options(self) -> None:
         exit_code, stdout, stderr = self.run_cli(
             ["export", "--input", "./data/subtitles", "--segments", "sentence", "--format", "jsonl"]

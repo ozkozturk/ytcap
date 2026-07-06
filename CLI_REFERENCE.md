@@ -7,6 +7,7 @@ Current implementation status:
 - `inspect` uses the `yt-dlp` adapter to emit metadata and subtitle availability summaries.
 - `video` and `export` have parser and validation skeletons.
 - Subtitle source selection for normalized tracks is implemented and tested.
+- Subtitle format validation for `srt` and `vtt` is implemented and tested.
 - `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
 - Subtitle download, file output, and JSONL export are wired in later milestones.
 
@@ -115,8 +116,9 @@ Expected JSON output example:
 
 ## 4. `video` Command
 
-Status: parser and validation skeleton implemented; subtitle source selection
-implemented in the service layer; metadata and subtitle file processing pending.
+Status: parser and validation skeleton implemented; subtitle source and format
+selection implemented in the service layer; metadata and subtitle file
+processing pending.
 
 Purpose:
 
@@ -154,6 +156,7 @@ Rules:
 - `--source manual` must not fall back to automatic subtitles.
 - `--source auto` must not use manual subtitles.
 - `--source any` should try manual subtitles first, then automatic subtitles.
+- `--format` accepts `srt` or `vtt`; other values return `UNSUPPORTED_FORMAT`.
 - Source selection requires an exact `--lang` match and the requested `--format`
   to be available on the selected track.
 - Subtitle download and file output are still pending.

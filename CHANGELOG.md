@@ -17,6 +17,7 @@ The format follows the spirit of "Keep a Changelog".
 - Added a `yt-dlp` subprocess adapter with controlled extractor errors.
 - Added normalized video metadata mapping and inspect summary output.
 - Added tested subtitle source selection for `manual`, `auto`, and `any`.
+- Added controlled subtitle format validation for `srt` and `vtt`.
 
 ### Changed
 

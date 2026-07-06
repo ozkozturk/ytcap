@@ -5,6 +5,7 @@ from __future__ import annotations
 from argparse import ArgumentParser, Namespace
 
 from ytcap.errors import ErrorCode, YtcapError
+from ytcap.services.subtitle_format import validate_subtitle_format
 
 from .common import display_video_source, require_video_source
 
@@ -14,7 +15,7 @@ def configure_parser(parser: ArgumentParser) -> None:
     parser.add_argument("--id", dest="video_id", help="YouTube video ID")
     parser.add_argument("--lang", default="en", help="subtitle language")
     parser.add_argument("--source", choices=("manual", "auto", "any"), default="any", help="subtitle source")
-    parser.add_argument("--format", choices=("srt", "vtt"), default="srt", help="subtitle file format")
+    parser.add_argument("--format", default="srt", help="subtitle file format")
     parser.add_argument("--out", default="./data", help="output directory")
     parser.add_argument("--metadata-only", action="store_true", help="write only metadata")
     parser.add_argument("--subs-only", action="store_true", help="write only subtitles")
@@ -26,6 +27,7 @@ def configure_parser(parser: ArgumentParser) -> None:
 
 def validate_video_args(args: Namespace) -> None:
     require_video_source(args)
+    validate_subtitle_format(args.format)
     if args.skip_existing and args.overwrite:
         raise YtcapError(
             ErrorCode.CONFLICTING_FLAGS,

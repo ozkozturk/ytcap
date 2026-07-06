@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from ytcap.errors import ErrorCode, YtcapError
+from ytcap.services.subtitle_format import validate_subtitle_format
 
 
 def select_subtitle_track(
@@ -17,13 +18,14 @@ def select_subtitle_track(
 ) -> dict[str, Any]:
     """Return a selected copy of the best matching subtitle track."""
 
+    requested_format = validate_subtitle_format(subtitle_format)
     for preferred_source in _source_order(source):
         for track in tracks:
             if _matches_track(
                 track,
                 language=language,
                 source=preferred_source,
-                subtitle_format=subtitle_format,
+                subtitle_format=requested_format,
             ):
                 selected = dict(track)
                 formats = selected.get("formats")
@@ -34,7 +36,7 @@ def select_subtitle_track(
 
     raise YtcapError(
         ErrorCode.SUBTITLE_NOT_FOUND,
-        f"subtitle not found for language '{language}', source '{source}', and format '{subtitle_format}'",
+        f"subtitle not found for language '{language}', source '{source}', and format '{requested_format}'",
         exit_code=4,
     )
 

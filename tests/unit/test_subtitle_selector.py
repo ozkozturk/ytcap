@@ -100,8 +100,8 @@ class SubtitleSelectorTest(unittest.TestCase):
     def test_missing_language_source_or_format_raises_subtitle_not_found(self) -> None:
         cases = [
             {"language": "de", "source": "any", "subtitle_format": "vtt"},
-            {"language": "en", "source": "manual", "subtitle_format": "json"},
             {"language": "tr", "source": "manual", "subtitle_format": "vtt"},
+            {"language": "en", "source": "auto", "subtitle_format": "srt"},
         ]
 
         for case in cases:
@@ -110,6 +110,13 @@ class SubtitleSelectorTest(unittest.TestCase):
 
             self.assertEqual(raised.exception.code, ErrorCode.SUBTITLE_NOT_FOUND)
             self.assertEqual(raised.exception.exit_code, 4)
+
+    def test_unsupported_format_raises_unsupported_format(self) -> None:
+        with self.assertRaises(YtcapError) as raised:
+            select_subtitle_track(sample_tracks(), language="en", source="manual", subtitle_format="json")
+
+        self.assertEqual(raised.exception.code, ErrorCode.UNSUPPORTED_FORMAT)
+        self.assertEqual(raised.exception.exit_code, 2)
 
     def test_selection_returns_copy_without_mutating_tracks(self) -> None:
         tracks = sample_tracks()
