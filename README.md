@@ -25,6 +25,7 @@ Currently implemented:
 - Controlled subtitle format validation for `srt` and `vtt`.
 - Standard output directory layout creation for `video --out`.
 - `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
+- SRT/VTT cue parsing and cue-level JSONL writer helpers.
 
 ## Core Decisions
 
@@ -78,7 +79,9 @@ These commands show the intended user experience. Some commands may not be imple
 The current `inspect` command uses `yt-dlp` for metadata and subtitle
 availability summaries. The `video` command extracts metadata through
 `yt-dlp`, writes normalized metadata JSON, selects a matching subtitle track,
-and saves the selected SRT/VTT subtitle file. JSONL export is still pending.
+and saves the selected SRT/VTT subtitle file. SRT/VTT cue parsers and a
+cue-level JSONL writer are implemented internally; wiring them into the
+`export` command is still pending.
 
 ### Inspect One Video
 
@@ -147,6 +150,12 @@ data/
     RUN_ID.manifest.json
   failed/
     failed.jsonl
+```
+
+Example cue-level JSONL line:
+
+```json
+{"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","cue_index":1}
 ```
 
 ## Documentation

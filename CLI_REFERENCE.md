@@ -10,8 +10,9 @@ Current implementation status:
 - Subtitle format validation for `srt` and `vtt` is implemented and tested.
 - Standard output directory layout creation, metadata JSON writing, and selected
   subtitle file download for `video --out` are implemented and tested.
+- SRT/VTT cue parsers and a cue-level JSONL writer are implemented and tested.
 - `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
-- JSONL export is wired in later milestones.
+- `export` command wiring and sentence-level JSONL export are wired in later milestones.
 
 ## 1. General Command Shape
 
@@ -176,7 +177,9 @@ Rules:
 
 ## 5. `export` Command
 
-Status: parser skeleton implemented; subtitle parsing and JSONL writing pending.
+Status: parser skeleton implemented. SRT/VTT cue parsers and cue-level JSONL
+writer helpers are implemented, but this command is not wired to them yet.
+Sentence-level JSONL export is pending.
 
 Purpose:
 

@@ -1,0 +1,13 @@
+1
+00:00:01,000 --> 00:00:03,500
+Hello from the first cue.
+
+2
+00:00:04,250 --> 00:00:06,000
+Second cue line one.
+Second cue line two.
+
+3
+01:02:03,004 --> 01:02:05,006
+Long timestamp cue.
+

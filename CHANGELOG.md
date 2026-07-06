@@ -20,6 +20,7 @@ The format follows the spirit of "Keep a Changelog".
 - Added controlled subtitle format validation for `srt` and `vtt`.
 - Added standard output directory layout helpers and `video --out` directory creation.
 - Added `video` metadata JSON writing and selected SRT/VTT subtitle file download.
+- Added SRT/VTT cue parser helpers and a cue-level JSONL writer.
 
 ### Changed
 

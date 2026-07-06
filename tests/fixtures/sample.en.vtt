@@ -1,0 +1,18 @@
+WEBVTT
+Kind: captions
+Language: en
+
+NOTE This comment should be ignored.
+
+00:00:01.000 --> 00:00:03.500
+Hello from the first VTT cue.
+
+cue-two
+00:04.250 --> 00:06.000 align:start position:0%
+Second cue line one.
+Second cue line two.
+
+3
+01:02:03.004 --> 01:02:05.006
+Long timestamp cue.
+

@@ -165,6 +165,9 @@ failed/
 *.ttml
 *.sbv
 *.jsonl
+!tests/fixtures/*.srt
+!tests/fixtures/*.vtt
+!tests/fixtures/*.jsonl
 
 
 # -----------------------------------------------------------------------------
