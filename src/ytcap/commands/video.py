@@ -5,6 +5,7 @@ from __future__ import annotations
 from argparse import ArgumentParser, Namespace
 
 from ytcap.errors import ErrorCode, YtcapError
+from ytcap.exporters.output_paths import ensure_output_layout
 from ytcap.services.subtitle_format import validate_subtitle_format
 
 from .common import display_video_source, require_video_source
@@ -53,5 +54,7 @@ def handle(args: Namespace) -> int:
     if args.dry_run:
         print("Dry run: no files written.")
     else:
+        ensure_output_layout(args.out)
+        print("Output directories prepared.")
         print("Extraction integration is not implemented yet.")
     return 0

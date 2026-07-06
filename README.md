@@ -23,6 +23,7 @@ Currently implemented:
 - Normalized video metadata mapping and inspect JSON summary output.
 - Tested subtitle source selection for `manual`, `auto`, and `any` normalized tracks.
 - Controlled subtitle format validation for `srt` and `vtt`.
+- Standard output directory layout creation for `video --out`.
 
 ## Core Decisions
 
@@ -73,10 +74,11 @@ Later releases may add:
 ## Planned CLI Examples
 
 These commands show the intended user experience. Some commands may not be implemented yet.
-The current `inspect` command uses `yt-dlp` for metadata and subtitle availability
-summaries. The `video` and `export` commands parse and validate options, and
-subtitle source selection rules are implemented in the service layer, but file
-writing, subtitle download, and JSONL export are still pending.
+The current `inspect` command uses `yt-dlp` for metadata and subtitle
+availability summaries. The `video` command parses and validates options,
+prepares the standard output directories, and has subtitle source and format
+selection helpers. Metadata file writing, subtitle download, and JSONL export
+are still pending.
 
 ### Inspect One Video
 
@@ -135,9 +137,9 @@ data/
   videos/
     VIDEO_ID.info.json
   subtitles/
-    VIDEO_ID.en.srt
+    VIDEO_ID.en.manual.srt
   normalized/
-    VIDEO_ID.en.jsonl
+    VIDEO_ID.en.cue.jsonl
   runs/
     RUN_ID.manifest.json
   failed/

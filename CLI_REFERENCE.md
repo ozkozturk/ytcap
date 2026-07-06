@@ -8,8 +8,9 @@ Current implementation status:
 - `video` and `export` have parser and validation skeletons.
 - Subtitle source selection for normalized tracks is implemented and tested.
 - Subtitle format validation for `srt` and `vtt` is implemented and tested.
+- Standard output directory layout creation for `video --out` is implemented and tested.
 - `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
-- Subtitle download, file output, and JSONL export are wired in later milestones.
+- Subtitle download, metadata/subtitle file output, and JSONL export are wired in later milestones.
 
 ## 1. General Command Shape
 
@@ -117,8 +118,8 @@ Expected JSON output example:
 ## 4. `video` Command
 
 Status: parser and validation skeleton implemented; subtitle source and format
-selection implemented in the service layer; metadata and subtitle file
-processing pending.
+selection implemented in the service layer; standard output directories are
+created; metadata and subtitle file processing pending.
 
 Purpose:
 
@@ -159,7 +160,9 @@ Rules:
 - `--format` accepts `srt` or `vtt`; other values return `UNSUPPORTED_FORMAT`.
 - Source selection requires an exact `--lang` match and the requested `--format`
   to be available on the selected track.
-- Subtitle download and file output are still pending.
+- Non-dry-run `video` creates `videos/`, `subtitles/`, `normalized/`, `runs/`,
+  and `failed/` under `--out`.
+- Subtitle download and metadata/subtitle file output are still pending.
 
 ## 5. `export` Command
 

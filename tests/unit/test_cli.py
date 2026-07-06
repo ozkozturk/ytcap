@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,7 @@ if str(SRC_DIR) not in sys.path:
 
 from ytcap import __version__  # noqa: E402
 from ytcap.cli import build_parser, main  # noqa: E402
+from ytcap.exporters.output_paths import OUTPUT_DIRECTORIES  # noqa: E402
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures"
@@ -159,6 +161,18 @@ class CliTest(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertIn("unsupported subtitle format 'json'", stderr)
         self.assertIn("code: UNSUPPORTED_FORMAT", stderr)
+
+    def test_video_command_prepares_output_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            exit_code, stdout, stderr = self.run_cli(["video", "--id", "abc123", "--out", str(output_dir)])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn("Output directories prepared.", stdout)
+            for directory_name in OUTPUT_DIRECTORIES:
+                self.assertTrue((output_dir / directory_name).is_dir())
 
     def test_export_command_accepts_core_options(self) -> None:
         exit_code, stdout, stderr = self.run_cli(
