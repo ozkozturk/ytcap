@@ -23,6 +23,8 @@ The format follows the spirit of "Keep a Changelog".
 - Added SRT/VTT cue parser helpers and a cue-level JSONL writer.
 - Added basic punctuation-based sentence segmentation and sentence-level JSONL writer helpers.
 - Added `export` command wiring for existing SRT/VTT files to cue-level or sentence-level JSONL.
+- Added `batch` input parser service to read video URLs or IDs from text files with comment support.
+
 
 ### Changed
 

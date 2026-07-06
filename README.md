@@ -155,6 +155,21 @@ ytcap batch --input videos.txt --lang en --source any --format srt --resume --sk
 This command is a later release target. The current placeholder returns a clear
 not-implemented error.
 
+#### Batch Input File Format
+
+The `--input` file for the `batch` command is a plain text file containing one YouTube video URL or video ID per line.
+- Empty lines and lines containing only whitespace are ignored.
+- Lines starting with `#` (with optional leading whitespace) are ignored as comment lines.
+- Inline comments starting with `#` are supported, and the comment text plus any preceding whitespace are ignored.
+
+Example input file:
+```text
+# This is a comment line
+dQw4w9WgXcQ                  # Rick Astley - Never Gonna Give You Up
+https://youtu.be/jNQXAC9IVRw # Another video URL
+```
+
+
 ## Planned Output Layout
 
 ```text

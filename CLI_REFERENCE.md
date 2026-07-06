@@ -263,6 +263,21 @@ Options:
 | `--max-errors` | Stop after the given number of errors |
 | `--out` | Output directory |
 
+### Batch Input File Format
+
+The `--input` file is a plain text file containing one YouTube video URL or video ID per line.
+- Empty lines and lines containing only whitespace are ignored.
+- Lines starting with `#` (with optional leading whitespace) are ignored as comment lines.
+- Inline comments starting with `#` are supported, and the comment text plus any preceding whitespace are ignored.
+
+Example input file:
+```text
+# This is a comment line
+dQw4w9WgXcQ                  # Rick Astley - Never Gonna Give You Up
+https://youtu.be/jNQXAC9IVRw # Another video URL
+```
+
+
 ## 7. `playlist` Command
 
 Status: post-MVP target.
