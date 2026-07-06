@@ -13,7 +13,6 @@ The format follows the spirit of "Keep a Changelog".
 - Added the initial Python package scaffold.
 - Added the basic `ytcap` console entry point with `--help` and `--version`.
 - Added parser and validation skeletons for `inspect`, `video`, and `export`.
-- Added a `batch` placeholder that returns a clear not-implemented error.
 - Added a `yt-dlp` subprocess adapter with controlled extractor errors.
 - Added normalized video metadata mapping and inspect summary output.
 - Added tested subtitle source selection for `manual`, `auto`, and `any`.
@@ -24,15 +23,21 @@ The format follows the spirit of "Keep a Changelog".
 - Added basic punctuation-based sentence segmentation and sentence-level JSONL writer helpers.
 - Added `export` command wiring for existing SRT/VTT files to cue-level or sentence-level JSONL.
 - Added `batch` input parser service to read video URLs or IDs from text files with comment support.
+- Added `batch` command for processing multiple video URLs or IDs from a text file, tracking execution metrics, and writing run manifests.
+- Added `failed_writer` helper for logging failed video processing attempts to `failed/failed.jsonl`.
+- Added `--resume` and `--skip-existing` support to the `batch` command for interrupted and incremental runs.
 
 
 ### Changed
 
-- Nothing yet.
+- Updated `batch --resume` so previous failures are retried and the run
+  manifest reflects the latest final state.
 
 ### Fixed
 
 - Prevented `export` from partially writing JSONL when duplicate target paths, existing outputs, or later parse errors are detected.
+- Prevented `batch --dry-run` from creating output directories.
+- Rejected non-positive `batch --max-errors` values with `INVALID_INPUT`.
 
 ### Removed
 

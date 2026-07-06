@@ -13,7 +13,8 @@ Current implementation status:
   subtitle file download for `video --out` are implemented and tested.
 - SRT/VTT cue parsers, cue-level JSONL writer helpers, and basic
   sentence-level segmentation helpers are implemented and tested.
-- `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
+- `batch` processes text files of video URLs or IDs, writes run manifests, logs
+  failures, and supports `--resume`, `--skip-existing`, and `--dry-run`.
 
 ## 1. General Command Shape
 
@@ -237,7 +238,7 @@ Rules:
 
 ## 6. `batch` Command
 
-Status: post-MVP target. The current CLI registers this command as a placeholder and returns `NOT_IMPLEMENTED`.
+Status: implemented.
 
 Purpose:
 
@@ -262,6 +263,19 @@ Options:
 | `--fail-fast` | Stop at the first error |
 | `--max-errors` | Stop after the given number of errors |
 | `--out` | Output directory |
+| `--dry-run` | Show planned work without writing files |
+
+Rules:
+
+- `--input` must point to a readable text file with at least one URL or ID.
+- `--max-errors` must be a positive integer when provided.
+- One video error does not stop the batch unless `--fail-fast` is set or
+  `--max-errors` is reached.
+- `--resume` skips entries already completed in the latest manifest and retries
+  previous failures; the new manifest reflects the latest final state.
+- Failed attempts are appended to `failed/failed.jsonl`.
+- `--dry-run` writes no files or directories and avoids metadata/subtitle
+  extraction.
 
 ### Batch Input File Format
 

@@ -369,12 +369,103 @@ class CliTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("the following arguments are required: --input", stderr.getvalue())
 
-    def test_batch_placeholder_returns_clear_error(self) -> None:
-        exit_code, _, stderr = self.run_cli(["batch", "--input", "videos.txt"])
+    def test_batch_command_handles_missing_file(self) -> None:
+        exit_code, _, stderr = self.run_cli(["batch", "--input", "non_existent_file_path.txt"])
 
-        self.assertEqual(exit_code, 1)
-        self.assertIn("batch command is not implemented yet", stderr)
-        self.assertIn("code: NOT_IMPLEMENTED", stderr)
+        self.assertEqual(exit_code, 2)
+        self.assertIn("could not read batch file", stderr)
+        self.assertIn("code: INVALID_INPUT", stderr)
+
+    @patch("ytcap.commands.batch.process_batch")
+    def test_batch_command_routes_to_use_case(self, mock_process: object) -> None:
+        from ytcap.app.process_batch import ProcessBatchResult
+        mock_process.return_value = ProcessBatchResult(
+            run_id="2026-07-06T20-00-00Z",
+            started_at="2026-07-06T20:00:00Z",
+            finished_at="2026-07-06T20:01:00Z",
+            total=10,
+            ok=8,
+            skipped=1,
+            failed=1,
+            manifest_path=Path("dummy.json"),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            batch_file = Path(temp_dir) / "videos.txt"
+            batch_file.write_text("abc12345678", encoding="utf-8")
+
+            exit_code, stdout, stderr = self.run_cli([
+                "batch",
+                "--input",
+                str(batch_file),
+                "--lang",
+                "tr",
+                "--source",
+                "manual",
+                "--format",
+                "vtt",
+                "--out",
+                "./out",
+                "--dry-run",
+            ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn("Dry run: no files written.", stdout)
+
+            dry_run_options = mock_process.call_args_list[0].args[0]
+            self.assertEqual(dry_run_options.input, str(batch_file))
+            self.assertEqual(dry_run_options.language, "tr")
+            self.assertEqual(dry_run_options.source, "manual")
+            self.assertEqual(dry_run_options.subtitle_format, "vtt")
+            self.assertEqual(dry_run_options.output_dir, "./out")
+            self.assertTrue(dry_run_options.dry_run)
+
+            exit_code, stdout, stderr = self.run_cli([
+                "batch",
+                "--input",
+                str(batch_file),
+                "--resume",
+                "--skip-existing",
+                "--fail-fast",
+                "--max-errors",
+                "2",
+                "--out",
+                "./out",
+            ])
+            self.assertEqual(exit_code, 1)
+            self.assertIn("Batch command completed.", stdout)
+            self.assertIn("Total: 10", stdout)
+            self.assertIn("Success: 8", stdout)
+            self.assertIn("Failed: 1", stdout)
+
+            run_options = mock_process.call_args_list[1].args[0]
+            self.assertEqual(run_options.input, str(batch_file))
+            self.assertEqual(run_options.output_dir, "./out")
+            self.assertTrue(run_options.resume)
+            self.assertTrue(run_options.skip_existing)
+            self.assertTrue(run_options.fail_fast)
+            self.assertEqual(run_options.max_errors, 2)
+            self.assertFalse(run_options.dry_run)
+
+    @patch("ytcap.commands.batch.process_batch")
+    def test_batch_rejects_non_positive_max_errors(self, mock_process: object) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            batch_file = Path(temp_dir) / "videos.txt"
+            batch_file.write_text("abc12345678", encoding="utf-8")
+
+            exit_code, _, stderr = self.run_cli([
+                "batch",
+                "--input",
+                str(batch_file),
+                "--max-errors",
+                "0",
+            ])
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("--max-errors must be a positive integer", stderr)
+        self.assertIn("code: INVALID_INPUT", stderr)
+        mock_process.assert_not_called()
 
 
 if __name__ == "__main__":

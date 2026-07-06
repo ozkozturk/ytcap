@@ -18,7 +18,7 @@ Currently implemented:
 - Package version exposed as `ytcap.__version__`.
 - Basic CLI entry point with `ytcap --help` and `ytcap --version`.
 - CLI command structure for `inspect`, `video`, and `export`.
-- A `batch` placeholder that clearly reports the command is not implemented yet.
+- `batch` command to process multiple video URLs or IDs from a text file, with run manifest logging, `--resume` and `--skip-existing` support.
 - `yt-dlp` adapter support for `inspect` metadata extraction.
 - Normalized video metadata mapping and inspect JSON summary output.
 - Tested subtitle source selection for `manual`, `auto`, and `any` normalized tracks.
@@ -57,10 +57,8 @@ The MVP is intended to:
 
 Later releases may add:
 
-- Batch file input.
 - Playlist processing.
-- Resume and skip-existing behavior.
-- Retry support for failed records.
+- A dedicated retry command for failed records.
 - PyPI publication.
 - Automated test and release workflows through GitHub Actions.
 
@@ -152,8 +150,13 @@ single file input.
 ytcap batch --input videos.txt --lang en --source any --format srt --resume --skip-existing --out ./data
 ```
 
-This command is a later release target. The current placeholder returns a clear
-not-implemented error.
+This command parses the input file and processes each URL/ID. It creates a run
+manifest under `runs/{run_id}.manifest.json` keeping track of execution
+statistics, output files, and errors. Failed attempts are appended to
+`failed/failed.jsonl`. `--resume` skips entries completed in the latest
+manifest and retries previous failures, while `--skip-existing` skips videos
+whose metadata and subtitle files already exist. `--dry-run` reports the batch
+plan without writing files or creating output directories.
 
 #### Batch Input File Format
 
@@ -170,7 +173,7 @@ https://youtu.be/jNQXAC9IVRw # Another video URL
 ```
 
 
-## Planned Output Layout
+## Output Layout
 
 ```text
 data/
