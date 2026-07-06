@@ -25,7 +25,7 @@ Currently implemented:
 - Controlled subtitle format validation for `srt` and `vtt`.
 - Standard output directory layout creation for `video --out`.
 - `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
-- SRT/VTT cue parsing and cue-level JSONL writer helpers.
+- SRT/VTT cue parsing, cue-level JSONL writer helpers, and basic sentence-level segmentation helpers.
 
 ## Core Decisions
 
@@ -79,8 +79,9 @@ These commands show the intended user experience. Some commands may not be imple
 The current `inspect` command uses `yt-dlp` for metadata and subtitle
 availability summaries. The `video` command extracts metadata through
 `yt-dlp`, writes normalized metadata JSON, selects a matching subtitle track,
-and saves the selected SRT/VTT subtitle file. SRT/VTT cue parsers and a
-cue-level JSONL writer are implemented internally; wiring them into the
+and saves the selected SRT/VTT subtitle file. SRT/VTT cue parsers,
+cue-level JSONL writer helpers, and basic punctuation-based sentence
+segmentation helpers are implemented internally; wiring them into the
 `export` command is still pending.
 
 ### Inspect One Video
@@ -157,6 +158,11 @@ Example cue-level JSONL line:
 ```json
 {"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","cue_index":1}
 ```
+
+Sentence-level segmentation uses a simple standard-library heuristic that
+splits on `.`, `?`, and `!`. Timing is marked with a strategy such as
+`cue_exact`, `cue_merge`, `heuristic`, or `unknown` because sentence boundaries
+can fall inside or across subtitle cues.
 
 ## Documentation
 

@@ -20,3 +20,20 @@ class SubtitleCue:
             "text": self.text,
         }
 
+
+@dataclass(frozen=True)
+class SubtitleSentence:
+    index: int
+    start: float
+    end: float
+    text: str
+    timing_strategy: str
+
+    def to_dict(self) -> dict[str, int | float | str]:
+        return {
+            "index": self.index,
+            "start": self.start,
+            "end": self.end,
+            "text": self.text,
+            "timing_strategy": self.timing_strategy,
+        }

@@ -10,9 +10,10 @@ Current implementation status:
 - Subtitle format validation for `srt` and `vtt` is implemented and tested.
 - Standard output directory layout creation, metadata JSON writing, and selected
   subtitle file download for `video --out` are implemented and tested.
-- SRT/VTT cue parsers and a cue-level JSONL writer are implemented and tested.
+- SRT/VTT cue parsers, cue-level JSONL writer helpers, and basic
+  sentence-level segmentation helpers are implemented and tested.
 - `batch` is registered as a placeholder and returns a `NOT_IMPLEMENTED` error.
-- `export` command wiring and sentence-level JSONL export are wired in later milestones.
+- `export` command wiring is planned for a later milestone.
 
 ## 1. General Command Shape
 
@@ -177,9 +178,9 @@ Rules:
 
 ## 5. `export` Command
 
-Status: parser skeleton implemented. SRT/VTT cue parsers and cue-level JSONL
-writer helpers are implemented, but this command is not wired to them yet.
-Sentence-level JSONL export is pending.
+Status: parser skeleton implemented. SRT/VTT cue parsers, cue-level JSONL
+writer helpers, and basic sentence-level segmentation helpers are implemented,
+but this command is not wired to them yet.
 
 Purpose:
 
@@ -210,7 +211,9 @@ Options:
 `sentence` segments:
 
 - Text is split into sentences.
-- Timing is matched with simple heuristics.
+- Initial splitting uses `.`, `?`, and `!` punctuation.
+- Timing is matched with simple heuristics and marked with `cue_exact`,
+  `cue_merge`, `heuristic`, or `unknown`.
 - Advanced NLP packages are not used.
 
 ## 6. `batch` Command

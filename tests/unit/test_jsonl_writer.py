@@ -15,14 +15,38 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from ytcap.errors import ErrorCode, YtcapError  # noqa: E402
-from ytcap.exporters.jsonl_writer import cue_jsonl_record, write_cue_jsonl_file  # noqa: E402
-from ytcap.models.subtitle import SubtitleCue  # noqa: E402
+from ytcap.exporters.jsonl_writer import (  # noqa: E402
+    cue_jsonl_record,
+    sentence_jsonl_record,
+    write_cue_jsonl_file,
+    write_sentence_jsonl_file,
+)
+from ytcap.models.subtitle import SubtitleCue, SubtitleSentence  # noqa: E402
 
 
 def sample_cues() -> list[SubtitleCue]:
     return [
         SubtitleCue(index=1, start=1.0, end=3.5, text="Hello."),
         SubtitleCue(index=2, start=4.25, end=6.0, text="Second cue."),
+    ]
+
+
+def sample_sentences() -> list[SubtitleSentence]:
+    return [
+        SubtitleSentence(
+            index=1,
+            start=1.0,
+            end=3.5,
+            text="Hello.",
+            timing_strategy="cue_exact",
+        ),
+        SubtitleSentence(
+            index=2,
+            start=4.25,
+            end=6.0,
+            text="Second sentence.",
+            timing_strategy="heuristic",
+        ),
     ]
 
 
@@ -50,6 +74,36 @@ class JsonlWriterTest(unittest.TestCase):
             },
         )
 
+    def test_sentence_jsonl_record_matches_output_schema(self) -> None:
+        record = sentence_jsonl_record(
+            SubtitleSentence(
+                index=1,
+                start=1.0,
+                end=3.5,
+                text="Hello.",
+                timing_strategy="cue_exact",
+            ),
+            video_id="abc123",
+            language="en",
+            source="manual",
+        )
+
+        self.assertEqual(
+            record,
+            {
+                "schema_version": "0.1",
+                "type": "sentence",
+                "video_id": "abc123",
+                "language": "en",
+                "source": "manual",
+                "start": 1.0,
+                "end": 3.5,
+                "text": "Hello.",
+                "sentence_index": 1,
+                "timing_strategy": "cue_exact",
+            },
+        )
+
     def test_write_cue_jsonl_file_writes_one_record_per_line(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "normalized" / "abc123.en.cue.jsonl"
@@ -72,6 +126,28 @@ class JsonlWriterTest(unittest.TestCase):
             self.assertEqual(first["source"], "manual")
             self.assertEqual(first["cue_index"], 1)
             self.assertEqual(second["start"], 4.25)
+
+    def test_write_sentence_jsonl_file_writes_one_record_per_line(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "normalized" / "abc123.en.sentence.jsonl"
+
+            written = write_sentence_jsonl_file(
+                output_path,
+                sample_sentences(),
+                video_id="abc123",
+                language="en",
+                source="manual",
+            )
+
+            self.assertTrue(written)
+            lines = output_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 2)
+            first = json.loads(lines[0])
+            second = json.loads(lines[1])
+            self.assertEqual(first["type"], "sentence")
+            self.assertEqual(first["sentence_index"], 1)
+            self.assertEqual(first["timing_strategy"], "cue_exact")
+            self.assertEqual(second["text"], "Second sentence.")
 
     def test_write_cue_jsonl_file_rejects_existing_output_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

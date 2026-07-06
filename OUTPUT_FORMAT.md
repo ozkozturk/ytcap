@@ -210,7 +210,10 @@ Example line:
 
 Note:
 
-Sentence-level timing may not always be exact. A sentence can span multiple cues. The initial implementation should use simple heuristics.
+Sentence-level timing may not always be exact. A sentence can span multiple
+cues, or multiple sentences can share a single cue. The initial implementation
+uses a punctuation-based split on `.`, `?`, and `!`, then maps sentence spans
+back to cue timing with simple heuristics.
 
 Possible `timing_strategy` values:
 
@@ -220,6 +223,15 @@ cue_merge
 heuristic
 unknown
 ```
+
+Meaning:
+
+| Value | Description |
+|---|---|
+| `cue_exact` | One complete sentence maps to one complete subtitle cue |
+| `cue_merge` | One sentence spans more than one subtitle cue |
+| `heuristic` | A sentence occupies part of a cue, so timing is estimated |
+| `unknown` | The sentence boundary or timing quality is uncertain |
 
 ## 7. Run Manifest Model
 
