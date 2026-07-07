@@ -6,13 +6,24 @@ It is designed for workflows where you have YouTube video URLs, video IDs, or pl
 
 ## Project Status
 
-This repository is in an early planning and implementation stage. The first target release is:
+The current public release is:
 
 ```text
 0.1.0
 ```
 
-Currently implemented:
+Release pages:
+
+- PyPI: <https://pypi.org/project/ytcap/>
+- GitHub Releases: <https://github.com/ozkozturk/ytcap/releases>
+
+Release automation uses GitHub Actions with PyPI and TestPyPI Trusted
+Publishing. See `RELEASE.md` for the maintainer release process.
+
+`ytcap` is still pre-1.0, so CLI details and JSON/JSONL schemas may change in
+future `0.x` releases. User-facing changes are tracked in `CHANGELOG.md`.
+
+The current release includes:
 
 - Importable Python package scaffold.
 - Package version exposed as `ytcap.__version__`.
@@ -45,9 +56,9 @@ Currently implemented:
 | Distribution target | PyPI and `pipx install ytcap` |
 | Additional dependencies | Require justification and approval before being added |
 
-## Planned Capabilities
+## Current Capabilities and Roadmap
 
-The MVP is intended to:
+The `0.1.0` release can:
 
 - Accept a single YouTube video URL or video ID.
 - Save normalized video metadata as JSON.
@@ -56,12 +67,13 @@ The MVP is intended to:
 - Save subtitles as SRT or VTT.
 - Convert subtitles to cue-level or sentence-level JSONL.
 - Report videos with missing or failed subtitle extraction.
+- Process a text batch file of video URLs or IDs.
+- Process a YouTube playlist with range and limit controls.
 
 Later releases may add:
 
 - A dedicated retry command for failed records.
-- PyPI publication.
-- Automated test and release workflows through GitHub Actions.
+- A stable `1.0` CLI and JSON/JSONL schema.
 
 ## Non-Goals
 
@@ -73,12 +85,12 @@ Later releases may add:
 - Redistribute YouTube content or bypass access restrictions.
 - Start with advanced NLP sentence segmentation libraries; simple, testable heuristics come first.
 
-## Planned CLI Examples
+## CLI Examples
 
-These commands show the intended user experience. Some commands may not be implemented yet.
-The current `inspect` command uses `yt-dlp` for metadata and subtitle
-availability summaries. The `video` command extracts metadata through
-`yt-dlp`, writes normalized metadata JSON, selects a matching subtitle track,
+These commands show the current user experience. The `inspect` command uses
+`yt-dlp` for metadata and subtitle availability summaries. The `video` command
+extracts metadata through `yt-dlp`, writes normalized metadata JSON, selects a
+matching subtitle track,
 and saves the selected SRT/VTT subtitle file. SRT/VTT cue parsers,
 cue-level JSONL writer helpers, and basic punctuation-based sentence
 segmentation helpers are wired into the `export` command for existing
@@ -90,7 +102,7 @@ subtitle files.
 ytcap inspect --url "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-This should answer:
+This answers:
 
 - Is the video reachable?
 - Can metadata be extracted?
@@ -226,9 +238,9 @@ can fall inside or across subtitle cues.
 | File | Purpose |
 |---|---|
 | `USAGE.md` | Usage boundaries, limitations, and responsible use notes |
-| `CLI_REFERENCE.md` | Planned commands, flags, behavior, and error codes |
+| `CLI_REFERENCE.md` | Commands, flags, behavior, and error codes |
 | `OUTPUT_FORMAT.md` | Target JSON and JSONL output formats |
-| `RELEASE.md` | Packaging and release process |
+| `RELEASE.md` | Packaging, Trusted Publishing, and release process |
 | `CONTRIBUTING.md` | Contributor expectations |
 | `SECURITY.md` | Security policy and sensitive data rules |
 
@@ -252,12 +264,18 @@ ytcap --help
 ytcap --version
 ```
 
-## Installation Target
+## Installation
 
-The long-term installation target is:
+Recommended installation from PyPI:
 
 ```bash
 pipx install ytcap
+```
+
+Alternative:
+
+```bash
+python -m pip install ytcap
 ```
 
 Expected usage:
@@ -272,4 +290,4 @@ ytcap video --url "https://www.youtube.com/watch?v=VIDEO_ID" --lang en --source 
 
 ## License
 
-This project is planned for release under the MIT License. See `LICENSE.md` for details.
+This project is released under the MIT License. See `LICENSE.md` for details.

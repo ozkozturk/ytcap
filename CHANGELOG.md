@@ -8,6 +8,17 @@ The format follows the spirit of "Keep a Changelog".
 
 ### Added
 
+- Added GitHub Actions CI and Trusted Publishing release workflows.
+
+### Changed
+
+- Updated release documentation to use GitHub Releases, GitHub Actions, and
+  PyPI/TestPyPI Trusted Publishing as the default release path.
+
+## [0.1.0] - 2026-07-07
+
+### Added
+
 - Planned the initial public documentation set.
 - Defined the project purpose, core decisions, CLI goals, output model, and dependency expectations.
 - Added the initial Python package scaffold.
@@ -63,20 +74,3 @@ The format follows the spirit of "Keep a Changelog".
 ### Removed
 
 - Nothing yet.
-
-## [0.1.0] - TBD
-
-Initial target release.
-
-Planned scope:
-
-- Python package scaffold.
-- `ytcap --help`.
-- `ytcap --version`.
-- `inspect` command.
-- Single-video metadata extraction.
-- Single-video subtitle extraction.
-- JSON metadata output.
-- SRT/VTT subtitle output.
-- Cue-level JSONL export.
-- Basic unit test suite.
