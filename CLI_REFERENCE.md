@@ -169,15 +169,19 @@ Rules:
 - `--source auto` must not use manual subtitles.
 - `--source any` should try manual subtitles first, then automatic subtitles.
 - `--format` accepts `srt` or `vtt`; other values return `UNSUPPORTED_FORMAT`.
-- Source selection requires an exact `--lang` match and the requested `--format`
-  to be available on the selected track.
+- Source selection requires the requested `--format` to be available on the
+  selected track. Language matching is exact except that `--lang en` also
+  accepts English subtitle tracks reported as `en-*`, such as `en-GB` or
+  `en-eEY6OEpapP`.
 - Non-dry-run `video` creates `videos/`, `subtitles/`, `normalized/`, `runs/`,
   and `failed/` under `--out`.
 - Metadata JSON is written to `videos/{video_id}.info.json` unless
   `--subs-only` is used.
 - Subtitle files are written to
   `subtitles/{video_id}.{lang}.{source}.{format}` unless `--metadata-only` is
-  used.
+  used. The `{lang}` path component is the requested CLI language, so an
+  accepted `en-*` English track still writes to `...en.manual.srt` for
+  `--lang en --source manual --format srt`.
 - Dynamic filename parts such as video ID, language, source, format, segment
   type, and run ID must be non-empty single filename components; path
   separators, absolute paths, control characters, `.` and `..` are rejected.
@@ -189,6 +193,9 @@ Rules:
 - With `--skip-existing`, a complete matching metadata+subtitle pair skips the
   video. If existing metadata is stale or incomplete but the subtitle can be
   completed, metadata is refreshed after the subtitle step succeeds.
+- `--skip-existing` uses the same English variant matching as subtitle
+  selection, so a selected `en-*` manual track satisfies a later `--lang en`
+  request.
 - If a requested subtitle track is not available, the command returns
   `SUBTITLE_NOT_FOUND`.
 - `--dry-run` writes no files and avoids metadata/subtitle extraction.

@@ -6,6 +6,10 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.1] - 2026-07-07
+
 ### Added
 
 - Added GitHub Actions CI and Trusted Publishing release workflows.
@@ -14,6 +18,8 @@ The format follows the spirit of "Keep a Changelog".
 
 - Updated release documentation to use GitHub Releases, GitHub Actions, and
   PyPI/TestPyPI Trusted Publishing as the default release path.
+- Updated English subtitle selection so `--lang en` can use manual `en-*`
+  tracks while keeping output filenames canonical.
 
 ## [0.1.0] - 2026-07-07
 

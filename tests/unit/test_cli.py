@@ -28,6 +28,21 @@ def sample_raw_metadata() -> dict[str, object]:
     return json.loads((FIXTURE_DIR / "sample.info.json").read_text(encoding="utf-8"))
 
 
+def sample_raw_metadata_with_manual_english_variant(language: str = "en-GB") -> dict[str, object]:
+    metadata = sample_raw_metadata()
+    metadata["subtitles"] = {
+        language: [
+            {"ext": "srt", "url": f"https://example.com/{language}.srt"},
+        ]
+    }
+    metadata["automatic_captions"] = {
+        "en": [
+            {"ext": "srt", "url": "https://example.com/en-auto.srt"},
+        ]
+    }
+    return metadata
+
+
 def configure_fake_video_adapter(adapter_class: object) -> object:
     adapter = adapter_class.return_value
     adapter.extract_metadata.return_value = sample_raw_metadata()
@@ -236,6 +251,37 @@ class CliTest(unittest.TestCase):
             adapter.download_subtitle.assert_called_once()
 
     @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_command_uses_selected_english_variant_but_canonical_output_path(
+        self,
+        adapter_class: object,
+    ) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+        adapter.extract_metadata.return_value = sample_raw_metadata_with_manual_english_variant("en-GB")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+
+            exit_code, stdout, stderr = self.run_cli(
+                ["video", "--id", "abc123", "--lang", "en", "--source", "manual", "--out", str(output_dir)]
+            )
+
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            subtitle_path = output_dir / "subtitles" / "abc123.en.manual.srt"
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn(f"Subtitle written: {subtitle_path}", stdout)
+            self.assertTrue(subtitle_path.is_file())
+            self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "subtitle en-GB manual srt\n")
+
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            tracks = {(item["language"], item["source"]): item for item in metadata["subtitles"]}
+            self.assertTrue(tracks[("en-GB", "manual")]["selected"])
+            self.assertTrue(tracks[("en-GB", "manual")]["downloaded"])
+            self.assertEqual(tracks[("en-GB", "manual")]["path"], str(subtitle_path))
+            adapter.download_subtitle.assert_called_once()
+            self.assertEqual(adapter.download_subtitle.call_args.kwargs["language"], "en-GB")
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
     def test_video_metadata_only_writes_no_subtitle(self, adapter_class: object) -> None:
         adapter = configure_fake_video_adapter(adapter_class)
 
@@ -415,6 +461,60 @@ class CliTest(unittest.TestCase):
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             self.assertEqual(metadata["video"]["title"], "Old title")
             self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "old subtitle\n")
+            adapter.download_subtitle.assert_not_called()
+
+    @patch("ytcap.commands.video.YtDlpAdapter")
+    def test_video_skip_existing_accepts_selected_english_variant_language(self, adapter_class: object) -> None:
+        adapter = configure_fake_video_adapter(adapter_class)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "data"
+            metadata_path = output_dir / "videos" / "abc123.info.json"
+            subtitle_path = output_dir / "subtitles" / "abc123.en.manual.srt"
+            metadata_path.parent.mkdir(parents=True)
+            subtitle_path.parent.mkdir(parents=True)
+            subtitle_path.write_text("old variant subtitle\n", encoding="utf-8")
+            metadata_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "0.1",
+                        "video": {"id": "abc123", "title": "Old title"},
+                        "subtitles": [
+                            {
+                                "language": "en-GB",
+                                "source": "manual",
+                                "formats": ["srt"],
+                                "selected": True,
+                                "downloaded": True,
+                                "path": str(subtitle_path),
+                            }
+                        ],
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            exit_code, stdout, stderr = self.run_cli(
+                [
+                    "video",
+                    "--id",
+                    "abc123",
+                    "--lang",
+                    "en",
+                    "--source",
+                    "manual",
+                    "--out",
+                    str(output_dir),
+                    "--skip-existing",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr, "")
+            self.assertIn(f"Metadata skipped: {metadata_path}", stdout)
+            self.assertIn(f"Subtitle skipped: {subtitle_path}", stdout)
+            self.assertEqual(subtitle_path.read_text(encoding="utf-8"), "old variant subtitle\n")
             adapter.download_subtitle.assert_not_called()
 
     def test_export_command_writes_jsonl_output(self) -> None:

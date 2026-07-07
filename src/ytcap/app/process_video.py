@@ -114,6 +114,7 @@ def process_video(options: ProcessVideoOptions, *, adapter: VideoProcessingAdapt
             subtitle_format=options.subtitle_format,
         )
         selected_source = str(selected["source"])
+        selected_language = str(selected["language"])
         subtitle_path = layout.subtitle_path(video_id, options.language, selected_source, options.subtitle_format)
 
         if metadata_path is not None:
@@ -124,7 +125,7 @@ def process_video(options: ProcessVideoOptions, *, adapter: VideoProcessingAdapt
         else:
             adapter.download_subtitle(
                 source,
-                language=options.language,
+                language=selected_language,
                 subtitle_source=selected_source,
                 subtitle_format=options.subtitle_format,
                 output_path=subtitle_path,

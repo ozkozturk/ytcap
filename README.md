@@ -9,7 +9,7 @@ It is designed for workflows where you have YouTube video URLs, video IDs, or pl
 The current public release is:
 
 ```text
-0.1.0
+0.1.1
 ```
 
 Release pages:
@@ -40,6 +40,9 @@ The current release includes:
 - `export` command conversion of existing SRT/VTT files to cue-level or sentence-level JSONL.
 - `playlist` command to process videos inside a YouTube playlist with `--limit`, `--start`, and `--end` range controls, run manifest logging, `--resume`, `--skip-existing`, and `--dry-run`.
 - Safe validation for dynamic output filename parts to prevent path traversal from user input or extractor metadata.
+- English manual subtitle variant matching for `--lang en`, including `en-*`
+  tracks such as `en-GB`.
+- GitHub Actions release automation with Trusted Publishing.
 
 ## Core Decisions
 
@@ -125,9 +128,12 @@ ytcap video --url "https://www.youtube.com/watch?v=VIDEO_ID" --lang en --source 
 | `--format srt` | Save subtitles as SRT |
 | `--out ./data` | Write outputs under `./data` |
 
-Implemented source selection behavior uses exact language and format matches:
+Implemented source selection behavior uses language and format matches:
 `manual` selects only manual subtitles, `auto` selects only automatic subtitles,
-and `any` tries manual first before falling back to automatic subtitles.
+and `any` tries manual first before falling back to automatic subtitles. For
+`--lang en`, manual English variants reported by YouTube as `en-*`, such as
+`en-GB` or `en-eEY6OEpapP`, are accepted while output file names still use the
+requested `en` language component.
 Implemented subtitle format validation currently accepts `srt` and `vtt`; other
 values return an `UNSUPPORTED_FORMAT` error before extraction work starts.
 When run without `--dry-run`, `video` writes normalized metadata to

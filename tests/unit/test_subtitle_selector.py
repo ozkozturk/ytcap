@@ -67,6 +67,150 @@ class SubtitleSelectorTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, ErrorCode.SUBTITLE_NOT_FOUND)
         self.assertEqual(raised.exception.exit_code, 4)
 
+    def test_manual_selection_accepts_english_language_variants(self) -> None:
+        tracks = [
+            {
+                "language": "en-GB",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "en-eEY6OEpapP",
+                "source": "manual",
+                "formats": ["vtt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+        ]
+
+        selected_srt = select_subtitle_track(tracks, language="en", source="manual", subtitle_format="srt")
+        selected_vtt = select_subtitle_track(tracks, language="en", source="manual", subtitle_format="vtt")
+
+        self.assertEqual(selected_srt["language"], "en-GB")
+        self.assertEqual(selected_srt["source"], "manual")
+        self.assertTrue(selected_srt["selected"])
+        self.assertEqual(selected_vtt["language"], "en-eEY6OEpapP")
+
+    def test_multiple_manual_english_variants_choose_first_normalized_track(self) -> None:
+        tracks = [
+            {
+                "language": "en-GB",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "en-USA",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "en-abc123",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+        ]
+
+        selected = select_subtitle_track(tracks, language="en", source="manual", subtitle_format="srt")
+
+        self.assertEqual(selected["language"], "en-GB")
+        self.assertEqual(selected["source"], "manual")
+        self.assertTrue(selected["selected"])
+
+    def test_exact_english_language_is_preferred_over_variant(self) -> None:
+        tracks = [
+            {
+                "language": "en-GB",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "en",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+        ]
+
+        selected = select_subtitle_track(tracks, language="en", source="manual", subtitle_format="srt")
+
+        self.assertEqual(selected["language"], "en")
+
+    def test_any_selection_prefers_manual_english_variant_over_auto_exact(self) -> None:
+        tracks = [
+            {
+                "language": "en",
+                "source": "auto",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "en-GB",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+        ]
+
+        selected = select_subtitle_track(tracks, language="en", source="any", subtitle_format="srt")
+
+        self.assertEqual(selected["language"], "en-GB")
+        self.assertEqual(selected["source"], "manual")
+
+    def test_english_variant_matching_does_not_accept_unrelated_codes(self) -> None:
+        tracks = [
+            {
+                "language": "en_US",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "english",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "sen",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+        ]
+
+        with self.assertRaises(YtcapError) as raised:
+            select_subtitle_track(tracks, language="en", source="manual", subtitle_format="srt")
+
+        self.assertEqual(raised.exception.code, ErrorCode.SUBTITLE_NOT_FOUND)
+
     def test_auto_selection_chooses_auto_track(self) -> None:
         selected = select_subtitle_track(
             sample_tracks(),

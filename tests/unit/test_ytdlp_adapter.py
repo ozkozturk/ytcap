@@ -188,6 +188,40 @@ class YtDlpAdapterTest(unittest.TestCase):
 
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
+    def test_download_subtitle_moves_english_variant_file_to_canonical_path(
+        self,
+        _which: object,
+        run: object,
+    ) -> None:
+        def fake_run(command: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if command[-1] == "--version":
+                return supported_version_process()
+            output_template = command[command.index("--output") + 1]
+            temp_root = Path(output_template).parent
+            (temp_root / "abc123.en-GB.srt").write_text("variant subtitle text\n", encoding="utf-8")
+            return CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+        run.side_effect = fake_run
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "abc123.en.manual.srt"
+
+            result = YtDlpAdapter().download_subtitle(
+                VideoSource(video_id="abc123"),
+                language="en-GB",
+                subtitle_source="manual",
+                subtitle_format="srt",
+                output_path=output_path,
+            )
+
+            self.assertEqual(result, output_path)
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "variant subtitle text\n")
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--sub-langs") + 1], "en-GB")
+
+    @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value="/usr/bin/yt-dlp")
     def test_download_auto_subtitle_uses_auto_flag(self, _which: object, run: object) -> None:
         def fake_run(command: list[str], **_kwargs: object) -> CompletedProcess[str]:
             if command[-1] == "--version":

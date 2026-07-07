@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ytcap.exporters.output_paths import OutputLayout
+from ytcap.services.subtitle_language import subtitle_language_match_rank
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ def _track_matches(track: Any, *, language: str, source: str, subtitle_format: s
         return False
     if not track.get("selected") or not track.get("downloaded"):
         return False
-    if track.get("language") != language:
+    if subtitle_language_match_rank(language, track.get("language")) is None:
         return False
     track_source = track.get("source")
     if source == "any":
