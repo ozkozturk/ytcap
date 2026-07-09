@@ -28,6 +28,26 @@ def sample_raw_metadata() -> dict[str, object]:
     return json.loads((FIXTURE_DIR / "sample.info.json").read_text(encoding="utf-8"))
 
 
+def sample_normalized_metadata(video_id: str) -> dict[str, object]:
+    return {
+        "schema_version": "0.1",
+        "video": {
+            "id": video_id,
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+            "webpage_url": f"https://www.youtube.com/watch?v={video_id}",
+            "title": "Example Video",
+            "duration_seconds": 320,
+            "upload_date": "20260101",
+        },
+        "channel": {
+            "id": "channel123",
+            "name": "Example Channel",
+            "url": "https://www.youtube.com/channel/channel123",
+        },
+        "subtitles": [],
+    }
+
+
 def sample_raw_metadata_with_manual_english_variant(language: str = "en-GB") -> dict[str, object]:
     metadata = sample_raw_metadata()
     metadata["subtitles"] = {
@@ -522,8 +542,14 @@ class CliTest(unittest.TestCase):
             root = Path(temp_dir)
             subtitle_path = root / "abc123.en.manual.srt"
             output_dir = root / "normalized"
+            metadata_path = root / "videos" / "abc123.info.json"
             subtitle_text = (FIXTURE_DIR / "sample.en.srt").read_text(encoding="utf-8")
             subtitle_path.write_text(subtitle_text, encoding="utf-8")
+            metadata_path.parent.mkdir()
+            metadata_path.write_text(
+                json.dumps(sample_normalized_metadata("abc123")) + "\n",
+                encoding="utf-8",
+            )
 
             exit_code, stdout, stderr = self.run_cli(
                 [
@@ -553,6 +579,9 @@ class CliTest(unittest.TestCase):
             self.assertEqual(records[0]["video_id"], "abc123")
             self.assertEqual(records[0]["language"], "en")
             self.assertEqual(records[0]["source"], "manual")
+            self.assertIn("normalized_text", records[0])
+            self.assertEqual(records[0]["video_title"], "Example Video")
+            self.assertEqual(records[0]["channel_id"], "channel123")
 
     def test_export_requires_input(self) -> None:
         stderr = io.StringIO()

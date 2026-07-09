@@ -7,7 +7,7 @@ Current implementation status:
 - `inspect` uses the `yt-dlp` adapter to emit metadata and subtitle availability summaries.
 - The adapter requires `yt-dlp>=2026.06.09` and rejects older runtime versions.
 - `video` processes one video and writes normalized metadata plus selected subtitles.
-- `export` converts existing SRT/VTT subtitle files to cue-level or sentence-level JSONL.
+- `export` converts existing SRT/VTT subtitle files to enriched cue-level or sentence-level JSONL.
 - Subtitle source selection for normalized tracks is implemented and tested.
 - Subtitle format validation for `srt` and `vtt` is implemented and tested.
 - Standard output directory layout creation, metadata JSON writing, and selected
@@ -207,6 +207,7 @@ Status: implemented for existing SRT/VTT file or directory inputs.
 Purpose:
 
 - Convert existing subtitle files into JSONL output.
+- Enrich each JSONL row with normalized search text and matching video metadata.
 - Perform no downloads.
 
 Usage:
@@ -235,6 +236,11 @@ Rules:
 - Directory input with no supported subtitle files returns `INVALID_INPUT`.
 - Output files are written as `{video_id}.{lang}.{segments}.jsonl` under
   `--out`.
+- The matching normalized metadata file must exist at
+  `videos/{video_id}.info.json` in the standard output layout. For a subtitle
+  input under `subtitles/`, the sibling `videos/` directory is used. For a
+  single file outside `subtitles/`, `--out` should point at the standard
+  `normalized/` directory so the sibling `videos/` directory can be found.
 - Inferred or overridden `video_id` and language values must be safe filename
   parts. Unsafe values return `INVALID_INPUT` before writing any output.
 - Existing output files are not overwritten by default.
@@ -245,6 +251,16 @@ Rules:
   `VIDEO_ID.en.manual.srt`.
 - `manual` and `auto` source markers are recognized case-insensitively.
 - If the file name omits source, JSONL records use `source` value `unknown`.
+- Missing fields inside the metadata JSON are represented as `null`.
+- Metadata files that are missing, unreadable, or invalid JSON fail before any
+  JSONL output is written.
+- Each JSONL record includes `normalized_text`, computed from the record's
+  display `text` by lowercasing/casefolding, removing apostrophe-like
+  characters, converting punctuation to spaces, and collapsing whitespace.
+- Each JSONL record includes compact video and channel metadata plus
+  non-English subtitle language arrays. English language codes `en` and `en-*`
+  are excluded from `available_manual_subtitles` and `downloaded_subtitles`;
+  empty arrays are represented as `null`.
 - `--video-id` and `--lang` overrides are valid only for a single file input.
 - Directory input requires each subtitle file to provide at least
   `VIDEO_ID.lang` in its file name.

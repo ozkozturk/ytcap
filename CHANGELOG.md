@@ -6,7 +6,11 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Added enriched `export` JSONL records with `normalized_text`, compact video
+  and channel metadata, and non-English subtitle language arrays from
+  `videos/{video_id}.info.json`.
 
 ## [0.1.1] - 2026-07-07
 

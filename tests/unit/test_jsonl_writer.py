@@ -24,6 +24,20 @@ from ytcap.exporters.jsonl_writer import (  # noqa: E402
 from ytcap.models.subtitle import SubtitleCue, SubtitleSentence  # noqa: E402
 
 
+METADATA_DEFAULTS = {
+    "channel_id": None,
+    "channel_name": None,
+    "channel_url": None,
+    "video_title": None,
+    "video_url": None,
+    "video_webpage_url": None,
+    "video_duration_seconds": None,
+    "video_upload_date": None,
+    "available_manual_subtitles": None,
+    "downloaded_subtitles": None,
+}
+
+
 def sample_cues() -> list[SubtitleCue]:
     return [
         SubtitleCue(index=1, start=1.0, end=3.5, text="Hello."),
@@ -70,7 +84,9 @@ class JsonlWriterTest(unittest.TestCase):
                 "start": 1.0,
                 "end": 3.5,
                 "text": "Hello.",
+                "normalized_text": "hello",
                 "cue_index": 1,
+                **METADATA_DEFAULTS,
             },
         )
 
@@ -99,10 +115,37 @@ class JsonlWriterTest(unittest.TestCase):
                 "start": 1.0,
                 "end": 3.5,
                 "text": "Hello.",
+                "normalized_text": "hello",
                 "sentence_index": 1,
                 "timing_strategy": "cue_exact",
+                **METADATA_DEFAULTS,
             },
         )
+
+    def test_cue_jsonl_record_includes_metadata_enrichment(self) -> None:
+        record = cue_jsonl_record(
+            SubtitleCue(index=1, start=1.0, end=3.5, text="I can't wait;"),
+            video_id="abc123",
+            language="en",
+            source="manual",
+            metadata_enrichment={
+                "channel_id": "channel123",
+                "channel_name": "Example Channel",
+                "channel_url": "https://example.com/channel",
+                "video_title": "Example Video",
+                "video_url": "https://www.youtube.com/watch?v=abc123",
+                "video_webpage_url": "https://www.youtube.com/watch?v=abc123",
+                "video_duration_seconds": 320,
+                "video_upload_date": "20260101",
+                "available_manual_subtitles": ["tr"],
+                "downloaded_subtitles": ["tr"],
+            },
+        )
+
+        self.assertEqual(record["normalized_text"], "i cant wait")
+        self.assertEqual(record["channel_name"], "Example Channel")
+        self.assertEqual(record["video_title"], "Example Video")
+        self.assertEqual(record["available_manual_subtitles"], ["tr"])
 
     def test_write_cue_jsonl_file_writes_one_record_per_line(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -97,6 +97,7 @@ class YtDlpAdapterTest(unittest.TestCase):
         self.assertEqual(command[:3], [sys.executable, "-m", "yt_dlp"])
 
     @patch("ytcap.services.ytdlp_adapter.subprocess.run")
+    @patch("ytcap.services.ytdlp_adapter.importlib.metadata.version", return_value="2026.06.09")
     @patch("ytcap.services.ytdlp_adapter.Path.exists", return_value=False)
     @patch("ytcap.services.ytdlp_adapter.importlib.util.find_spec", return_value=object())
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value=None)
@@ -105,6 +106,7 @@ class YtDlpAdapterTest(unittest.TestCase):
         _which: object,
         _find_spec: object,
         _exists: object,
+        _metadata_version: object,
         run: object,
     ) -> None:
         raw = {"id": "abc123", "title": "Example"}

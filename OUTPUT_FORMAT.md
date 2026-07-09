@@ -177,7 +177,7 @@ data/normalized/{video_id}.{lang}.cue.jsonl
 Each line is one JSON object:
 
 ```json
-{"schema_version":"0.1","type":"cue","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":16.8,"text":"This is an example sentence.","cue_index":1}
+{"schema_version":"0.1","type":"cue","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":16.8,"text":"This is an example sentence.","normalized_text":"this is an example sentence","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"]}
 ```
 
 Fields:
@@ -192,7 +192,10 @@ Fields:
 | `start` | number | Start time in seconds |
 | `end` | number | End time in seconds |
 | `text` | string | Cue text |
+| `normalized_text` | string | Search-friendly normalized cue text |
 | `cue_index` | number/null | Original cue index |
+
+Cue records also include the common JSONL enrichment fields listed below.
 
 ## 6. Sentence-Level JSONL
 
@@ -205,7 +208,7 @@ data/normalized/{video_id}.{lang}.sentence.jsonl
 Example line:
 
 ```json
-{"schema_version":"0.1","type":"sentence","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":18.2,"text":"This is an example sentence.","sentence_index":1,"timing_strategy":"heuristic"}
+{"schema_version":"0.1","type":"sentence","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":18.2,"text":"This is an example sentence.","normalized_text":"this is an example sentence","sentence_index":1,"timing_strategy":"heuristic","channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"]}
 ```
 
 Note:
@@ -233,7 +236,46 @@ Meaning:
 | `heuristic` | A sentence occupies part of a cue, so timing is estimated |
 | `unknown` | The sentence boundary or timing quality is uncertain |
 
-## 7. Run Manifest Model
+Sentence records also include the common JSONL enrichment fields listed below.
+
+## 7. Common JSONL Enrichment Fields
+
+The `export` command enriches cue-level and sentence-level JSONL records from
+the matching normalized metadata file:
+
+```text
+data/videos/{video_id}.info.json
+```
+
+Missing fields inside that metadata JSON are represented as `null`.
+
+| Field | Type | Description |
+|---|---|---|
+| `normalized_text` | string | Search-friendly text derived from the record's display `text` |
+| `channel_id` | string/null | Channel ID from metadata |
+| `channel_name` | string/null | Channel name from metadata |
+| `channel_url` | string/null | Channel URL from metadata |
+| `video_title` | string/null | Video title from metadata |
+| `video_url` | string/null | Normalized video URL from metadata |
+| `video_webpage_url` | string/null | Extractor webpage URL from metadata |
+| `video_duration_seconds` | number/null | Video duration in seconds from metadata |
+| `video_upload_date` | string/null | Upload date from metadata |
+| `available_manual_subtitles` | array/null | Non-English manual subtitle languages available in metadata |
+| `downloaded_subtitles` | array/null | Non-English subtitle languages marked downloaded in metadata |
+
+`normalized_text` is intended for simple text search. It is computed from the
+record's `text` by Unicode normalizing, casefolding/lowercasing, removing
+apostrophe-like characters, converting other punctuation to spaces, and
+collapsing whitespace. For example, `I can't wait;` becomes `i cant wait`.
+
+Subtitle language arrays exclude English language codes:
+
+```text
+en
+en-*
+```
+
+## 8. Run Manifest Model
 
 Batch or playlist processing should keep a manifest for each run.
 
@@ -281,7 +323,7 @@ Example:
 }
 ```
 
-## 8. Failed JSONL Model
+## 9. Failed JSONL Model
 
 File path:
 
@@ -295,7 +337,7 @@ Example line:
 {"schema_version":"0.1","video_id":"def456","url":"https://www.youtube.com/watch?v=def456","code":"SUBTITLE_NOT_FOUND","message":"subtitle not found","failed_at":"2026-07-06T20:05:00Z"}
 ```
 
-## 9. Backward Compatibility
+## 10. Backward Compatibility
 
 Schemas may change during `0.x` releases. Each schema change should be tracked in:
 

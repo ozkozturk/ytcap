@@ -29,12 +29,77 @@ def read_jsonl(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
+def sample_metadata(video_id: str) -> dict[str, object]:
+    return {
+        "schema_version": "0.1",
+        "video": {
+            "id": video_id,
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+            "webpage_url": f"https://www.youtube.com/watch?v={video_id}",
+            "title": f"Video {video_id}",
+            "duration_seconds": 320,
+            "upload_date": "20260101",
+        },
+        "channel": {
+            "id": "channel123",
+            "name": "Example Channel",
+            "url": "https://www.youtube.com/channel/channel123",
+        },
+        "subtitles": [
+            {
+                "language": "en",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": True,
+                "downloaded": True,
+                "path": f"data/subtitles/{video_id}.en.manual.srt",
+            },
+            {
+                "language": "en-GB",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "tr",
+                "source": "manual",
+                "formats": ["srt"],
+                "selected": False,
+                "downloaded": False,
+                "path": None,
+            },
+            {
+                "language": "de",
+                "source": "auto",
+                "formats": ["vtt"],
+                "selected": False,
+                "downloaded": True,
+                "path": f"data/subtitles/{video_id}.de.auto.vtt",
+            },
+        ],
+    }
+
+
+def write_metadata(root: Path, video_id: str, payload: dict[str, object] | None = None) -> Path:
+    metadata_path = root / "videos" / f"{video_id}.info.json"
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(
+        json.dumps(payload if payload is not None else sample_metadata(video_id)) + "\n",
+        encoding="utf-8",
+    )
+    return metadata_path
+
+
 class ExportSubtitlesTest(unittest.TestCase):
     def test_single_srt_file_exports_cue_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            subtitle_path = root / "abc123.en.manual.srt"
+            subtitle_path = root / "subtitles" / "abc123.en.manual.srt"
+            subtitle_path.parent.mkdir()
             subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            write_metadata(root, "abc123")
 
             result = export_subtitles(
                 ExportSubtitlesOptions(
@@ -54,12 +119,19 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertEqual(records[0]["video_id"], "abc123")
             self.assertEqual(records[0]["language"], "en")
             self.assertEqual(records[0]["source"], "manual")
+            self.assertIn("normalized_text", records[0])
+            self.assertEqual(records[0]["channel_name"], "Example Channel")
+            self.assertEqual(records[0]["video_title"], "Video abc123")
+            self.assertEqual(records[0]["available_manual_subtitles"], ["tr"])
+            self.assertEqual(records[0]["downloaded_subtitles"], ["de"])
 
     def test_single_vtt_file_exports_sentence_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            subtitle_path = root / "abc123.en.auto.vtt"
+            subtitle_path = root / "subtitles" / "abc123.en.auto.vtt"
+            subtitle_path.parent.mkdir()
             subtitle_path.write_text(fixture_text("sample.en.vtt"), encoding="utf-8")
+            write_metadata(root, "abc123")
 
             result = export_subtitles(
                 ExportSubtitlesOptions(
@@ -76,6 +148,8 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertGreater(len(records), 0)
             self.assertEqual(records[0]["type"], "sentence")
             self.assertEqual(records[0]["source"], "auto")
+            self.assertIn("normalized_text", records[0])
+            self.assertEqual(records[0]["channel_id"], "channel123")
             self.assertIn("timing_strategy", records[0])
 
     def test_directory_export_processes_supported_files_sorted(self) -> None:
@@ -86,6 +160,8 @@ class ExportSubtitlesTest(unittest.TestCase):
             (input_dir / "zeta.en.manual.srt").write_text(fixture_text("sample.en.srt"), encoding="utf-8")
             (input_dir / "alpha.tr.auto.vtt").write_text(fixture_text("sample.en.vtt"), encoding="utf-8")
             (input_dir / "ignored.txt").write_text("not subtitles\n", encoding="utf-8")
+            write_metadata(root, "zeta")
+            write_metadata(root, "alpha")
 
             result = export_subtitles(
                 ExportSubtitlesOptions(
@@ -106,8 +182,10 @@ class ExportSubtitlesTest(unittest.TestCase):
     def test_filename_without_source_uses_unknown_source(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            subtitle_path = root / "abc123.en.srt"
+            subtitle_path = root / "subtitles" / "abc123.en.srt"
+            subtitle_path.parent.mkdir()
             subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            write_metadata(root, "abc123")
 
             export_subtitles(
                 ExportSubtitlesOptions(
@@ -123,8 +201,10 @@ class ExportSubtitlesTest(unittest.TestCase):
     def test_filename_source_is_case_insensitive(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            subtitle_path = root / "abc123.en.MANUAL.srt"
+            subtitle_path = root / "subtitles" / "abc123.en.MANUAL.srt"
+            subtitle_path.parent.mkdir()
             subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            write_metadata(root, "abc123")
 
             export_subtitles(
                 ExportSubtitlesOptions(
@@ -142,6 +222,7 @@ class ExportSubtitlesTest(unittest.TestCase):
             root = Path(temp_dir)
             subtitle_path = root / "input.srt"
             subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            write_metadata(root, "abc123")
 
             result = export_subtitles(
                 ExportSubtitlesOptions(
@@ -157,6 +238,76 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertEqual(result.files[0].language, "tr")
             self.assertEqual(result.files[0].source, "unknown")
             self.assertTrue((root / "normalized" / "abc123.tr.cue.jsonl").is_file())
+
+    def test_missing_metadata_fields_export_as_null(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "subtitles" / "abc123.en.manual.srt"
+            subtitle_path.parent.mkdir()
+            subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            write_metadata(root, "abc123", payload={"schema_version": "0.1"})
+
+            export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path=subtitle_path,
+                    segments="cue",
+                    output_dir=root / "normalized",
+                )
+            )
+
+            records = read_jsonl(root / "normalized" / "abc123.en.cue.jsonl")
+            self.assertIsNone(records[0]["channel_id"])
+            self.assertIsNone(records[0]["channel_name"])
+            self.assertIsNone(records[0]["video_title"])
+            self.assertIsNone(records[0]["available_manual_subtitles"])
+            self.assertIsNone(records[0]["downloaded_subtitles"])
+
+    def test_missing_metadata_file_rejects_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "subtitles" / "abc123.en.manual.srt"
+            output_path = root / "normalized" / "abc123.en.cue.jsonl"
+            subtitle_path.parent.mkdir()
+            subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+
+            with self.assertRaises(YtcapError) as raised:
+                export_subtitles(
+                    ExportSubtitlesOptions(
+                        input_path=subtitle_path,
+                        segments="cue",
+                        output_dir=root / "normalized",
+                    )
+                )
+
+            self.assertFalse(output_path.exists())
+
+        self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
+        self.assertIn("metadata file not found", raised.exception.message)
+
+    def test_invalid_metadata_json_rejects_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "subtitles" / "abc123.en.manual.srt"
+            output_path = root / "normalized" / "abc123.en.cue.jsonl"
+            metadata_path = root / "videos" / "abc123.info.json"
+            subtitle_path.parent.mkdir()
+            metadata_path.parent.mkdir()
+            subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            metadata_path.write_text("{not json\n", encoding="utf-8")
+
+            with self.assertRaises(YtcapError) as raised:
+                export_subtitles(
+                    ExportSubtitlesOptions(
+                        input_path=subtitle_path,
+                        segments="cue",
+                        output_dir=root / "normalized",
+                    )
+                )
+
+            self.assertFalse(output_path.exists())
+
+        self.assertEqual(raised.exception.code, ErrorCode.PARSE_FAILED)
+        self.assertIn("could not parse metadata JSON", raised.exception.message)
 
     def test_single_file_rejects_unsafe_video_id_override(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -383,6 +534,8 @@ class ExportSubtitlesTest(unittest.TestCase):
                 fixture_text("malformed.srt"),
                 encoding="utf-8",
             )
+            write_metadata(root, "alpha")
+            write_metadata(root, "zeta")
 
             with self.assertRaises(YtcapError) as raised:
                 export_subtitles(

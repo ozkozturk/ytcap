@@ -37,7 +37,7 @@ The current release includes:
 - Standard output directory layout creation for `video --out`.
 - `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
 - SRT/VTT cue parsing, cue-level JSONL writer helpers, and basic sentence-level segmentation helpers.
-- `export` command conversion of existing SRT/VTT files to cue-level or sentence-level JSONL.
+- `export` command conversion of existing SRT/VTT files to enriched cue-level or sentence-level JSONL.
 - `playlist` command to process videos inside a YouTube playlist with `--limit`, `--start`, and `--end` range controls, run manifest logging, `--resume`, `--skip-existing`, and `--dry-run`.
 - Safe validation for dynamic output filename parts to prevent path traversal from user input or extractor metadata.
 - English manual subtitle variant matching for `--lang en`, including `en-*`
@@ -158,12 +158,19 @@ ytcap export --input ./data/subtitles/VIDEO_ID.en.manual.srt --segments cue --ou
 ytcap export --input ./data/subtitles --segments sentence --out ./data/normalized
 ```
 
-The `export` command reads existing `.srt` and `.vtt` files and writes JSONL
-records to `{video_id}.{lang}.{segments}.jsonl` under the output directory. It
-infers `video_id`, language, and source from names such as
+The `export` command reads existing `.srt` and `.vtt` files and writes enriched
+JSONL records to `{video_id}.{lang}.{segments}.jsonl` under the output
+directory. It infers `video_id`, language, and source from names such as
 `VIDEO_ID.en.manual.srt`; when the source is missing, JSONL records use
 `"source":"unknown"`. `--video-id` and `--lang` may override metadata for a
 single file input.
+
+Export expects the matching normalized metadata file at
+`videos/{video_id}.info.json` in the standard output layout. Each JSONL record
+keeps the display `text`, adds a search-friendly `normalized_text`, and copies
+compact video, channel, available manual subtitle language, and downloaded
+subtitle language metadata from that file. English subtitle languages (`en` and
+`en-*`) are excluded from the subtitle language arrays.
 
 Dynamic filename parts such as video ID, language, source, format, segment type,
 and run ID are validated before paths are built. Empty values, path separators,
@@ -231,7 +238,7 @@ data/
 Example cue-level JSONL line:
 
 ```json
-{"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","cue_index":1}
+{"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","normalized_text":"example subtitle text","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_webpage_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"]}
 ```
 
 Sentence-level segmentation uses a simple standard-library heuristic that
