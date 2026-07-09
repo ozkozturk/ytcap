@@ -9,7 +9,7 @@ It is designed for workflows where you have YouTube video URLs, video IDs, or pl
 The current public release is:
 
 ```text
-0.1.1
+0.1.2
 ```
 
 Release pages:
@@ -61,7 +61,7 @@ The current release includes:
 
 ## Current Capabilities and Roadmap
 
-The `0.1.0` release can:
+The current release can:
 
 - Accept a single YouTube video URL or video ID.
 - Save normalized video metadata as JSON.

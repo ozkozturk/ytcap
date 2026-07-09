@@ -6,6 +6,10 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.2] - 2026-07-10
+
 ### Added
 
 - Added enriched `export` JSONL records with `normalized_text`, compact video

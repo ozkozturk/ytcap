@@ -17,7 +17,7 @@ class PackageImportTest(unittest.TestCase):
     def test_package_exports_version(self) -> None:
         ytcap = importlib.import_module("ytcap")
 
-        self.assertEqual(ytcap.__version__, "0.1.1")
+        self.assertEqual(ytcap.__version__, "0.1.2")
 
     def test_version_is_public_export(self) -> None:
         ytcap = importlib.import_module("ytcap")
