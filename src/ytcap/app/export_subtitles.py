@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from ytcap.errors import ErrorCode, YtcapError
 from ytcap.exporters.jsonl_writer import write_cue_jsonl_file, write_sentence_jsonl_file
-from ytcap.exporters.output_paths import normalized_file_path
+from ytcap.exporters.output_paths import infer_export_output_layout, normalized_file_path
+from ytcap.models.export_enrichment import export_enrichment_fields, normalize_dataset_category
 from ytcap.models.subtitle import SubtitleCue, SubtitleSentence
+from ytcap.services.metadata_reader import read_metadata_json
 from ytcap.services.subtitle_parser import parse_srt_file, parse_vtt_file
 from ytcap.services.subtitle_segmenter import segment_cues_into_sentences
 
@@ -70,7 +71,7 @@ class _PreparedSubtitleExport:
 
 def export_subtitles(options: ExportSubtitlesOptions) -> ExportSubtitlesResult:
     _validate_segments(options.segments)
-    category = _category_value(options.category)
+    category = normalize_dataset_category(options.category)
     input_path = Path(options.input_path)
     subtitle_files = _subtitle_files(input_path, options=options)
     output_dir = Path(options.output_dir)
@@ -194,8 +195,7 @@ def _prepare_subtitle_export(
     segments: str,
     category: str | None,
 ) -> _PreparedSubtitleExport:
-    metadata_enrichment = _metadata_enrichment_for_job(job)
-    metadata_enrichment.update(_category_enrichment(category))
+    metadata_enrichment = _metadata_enrichment_for_job(job, category=category)
     cues = tuple(_parse_subtitle_file(job.input_path))
     if segments == "cue":
         return _PreparedSubtitleExport(
@@ -291,110 +291,10 @@ def _infer_metadata_from_filename(path: Path) -> _SubtitleFileMetadata:
     return _SubtitleFileMetadata(video_id=parts[0], language=parts[1], source="unknown")
 
 
-def _metadata_enrichment_for_job(job: _ExportSubtitleJob) -> dict[str, Any]:
-    metadata_path = _metadata_json_path(
-        job.input_path,
-        output_path=job.output_path,
-        video_id=str(job.metadata.video_id),
-    )
-    metadata = _read_metadata_json(metadata_path)
-    video = _dict_field(metadata, "video")
-    channel = _dict_field(metadata, "channel")
-    subtitles = _list_field(metadata, "subtitles")
-    return {
-        "channel_id": channel.get("id"),
-        "channel_name": channel.get("name"),
-        "channel_url": channel.get("url"),
-        "video_title": video.get("title"),
-        "video_url": video.get("url"),
-        "video_webpage_url": video.get("webpage_url"),
-        "video_duration_seconds": video.get("duration_seconds"),
-        "video_upload_date": video.get("upload_date"),
-        "available_manual_subtitles": _subtitle_languages(
-            subtitles,
-            source="manual",
-            downloaded=None,
-        ),
-        "downloaded_subtitles": _subtitle_languages(
-            subtitles,
-            source=None,
-            downloaded=True,
-        ),
-    }
-
-
-def _metadata_json_path(path: Path, *, output_path: Path, video_id: str) -> Path:
-    if path.parent.name == "subtitles":
-        return path.parent.parent / "videos" / f"{video_id}.info.json"
-    if output_path.parent.name == "normalized":
-        return output_path.parent.parent / "videos" / f"{video_id}.info.json"
-    return Path("data") / "videos" / f"{video_id}.info.json"
-
-
-def _read_metadata_json(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise YtcapError(
-            ErrorCode.INVALID_INPUT,
-            f"metadata file not found '{path}'",
-            exit_code=2,
-        ) from exc
-    except OSError as exc:
-        raise YtcapError(
-            ErrorCode.INVALID_INPUT,
-            f"could not read metadata file '{path}': {exc}",
-            exit_code=2,
-        ) from exc
-    except json.JSONDecodeError as exc:
-        raise YtcapError(
-            ErrorCode.PARSE_FAILED,
-            f"could not parse metadata JSON '{path}': {exc}",
-            exit_code=3,
-        ) from exc
-
-    if not isinstance(payload, dict):
-        raise YtcapError(
-            ErrorCode.PARSE_FAILED,
-            f"metadata JSON must be an object '{path}'",
-            exit_code=3,
-        )
-    return payload
-
-
-def _dict_field(data: dict[str, Any], field_name: str) -> dict[str, Any]:
-    value = data.get(field_name)
-    return value if isinstance(value, dict) else {}
-
-
-def _list_field(data: dict[str, Any], field_name: str) -> list[Any]:
-    value = data.get(field_name)
-    return value if isinstance(value, list) else []
-
-
-def _subtitle_languages(
-    subtitles: list[Any],
-    *,
-    source: str | None,
-    downloaded: bool | None,
-) -> list[str] | None:
-    languages = sorted(
-        {
-            language
-            for item in subtitles
-            if isinstance(item, dict)
-            if (source is None or item.get("source") == source)
-            if (downloaded is None or item.get("downloaded") is downloaded)
-            if isinstance((language := item.get("language")), str)
-            if not _is_english_language(language)
-        }
-    )
-    return languages or None
-
-
-def _is_english_language(language: str) -> bool:
-    normalized = language.casefold()
-    return normalized == "en" or normalized.startswith("en-")
+def _metadata_enrichment_for_job(job: _ExportSubtitleJob, *, category: str | None) -> dict[str, Any]:
+    layout = infer_export_output_layout(job.input_path, job.output_path.parent)
+    metadata = read_metadata_json(layout.metadata_path(str(job.metadata.video_id)))
+    return export_enrichment_fields(metadata, category=category)
 
 
 def _parse_subtitle_file(path: Path) -> list[SubtitleCue]:
@@ -415,28 +315,6 @@ def _validate_segments(segments: str) -> None:
         f"unsupported segment type '{segments}'; supported segments: {supported}",
         exit_code=2,
     )
-
-
-def _category_value(category: str | None) -> str | None:
-    if category is None:
-        return None
-    value = category.strip()
-    if value:
-        return value
-    raise YtcapError(
-        ErrorCode.INVALID_INPUT,
-        "--category must not be empty",
-        exit_code=2,
-    )
-
-
-def _category_enrichment(category: str | None) -> dict[str, str]:
-    if category is None:
-        return {}
-    return {
-        "dataset_category": category,
-        "category_source": "user",
-    }
 
 
 def _validate_supported_file(path: Path) -> None:

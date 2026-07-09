@@ -24,22 +24,6 @@ from ytcap.exporters.jsonl_writer import (  # noqa: E402
 from ytcap.models.subtitle import SubtitleCue, SubtitleSentence  # noqa: E402
 
 
-METADATA_DEFAULTS = {
-    "channel_id": None,
-    "channel_name": None,
-    "channel_url": None,
-    "video_title": None,
-    "video_url": None,
-    "video_webpage_url": None,
-    "video_duration_seconds": None,
-    "video_upload_date": None,
-    "available_manual_subtitles": None,
-    "downloaded_subtitles": None,
-    "dataset_category": None,
-    "category_source": "none",
-}
-
-
 def sample_cues() -> list[SubtitleCue]:
     return [
         SubtitleCue(index=1, start=1.0, end=3.5, text="Hello."),
@@ -88,7 +72,6 @@ class JsonlWriterTest(unittest.TestCase):
                 "text": "Hello.",
                 "normalized_text": "hello",
                 "cue_index": 1,
-                **METADATA_DEFAULTS,
             },
         )
 
@@ -120,7 +103,6 @@ class JsonlWriterTest(unittest.TestCase):
                 "normalized_text": "hello",
                 "sentence_index": 1,
                 "timing_strategy": "cue_exact",
-                **METADATA_DEFAULTS,
             },
         )
 

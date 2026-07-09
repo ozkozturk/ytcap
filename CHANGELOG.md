@@ -14,6 +14,11 @@ The format follows the spirit of "Keep a Changelog".
 - Added `export --category` to populate `dataset_category` and
   `category_source` in JSONL records.
 
+### Changed
+
+- Centralized `export` metadata enrichment and made metadata layout resolution
+  require the standard `subtitles`/`videos`/`normalized` output layout.
+
 ## [0.1.1] - 2026-07-07
 
 ### Added

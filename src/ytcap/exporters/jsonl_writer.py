@@ -13,20 +13,6 @@ from ytcap.services.text_normalizer import normalize_search_text
 
 
 SCHEMA_VERSION = "0.1"
-METADATA_ENRICHMENT_DEFAULTS: dict[str, Any] = {
-    "channel_id": None,
-    "channel_name": None,
-    "channel_url": None,
-    "video_title": None,
-    "video_url": None,
-    "video_webpage_url": None,
-    "video_duration_seconds": None,
-    "video_upload_date": None,
-    "available_manual_subtitles": None,
-    "downloaded_subtitles": None,
-    "dataset_category": None,
-    "category_source": "none",
-}
 
 
 def cue_jsonl_record(
@@ -137,10 +123,7 @@ def write_sentence_jsonl_file(
 
 
 def _metadata_enrichment_fields(metadata_enrichment: Mapping[str, Any] | None) -> dict[str, Any]:
-    fields = dict(METADATA_ENRICHMENT_DEFAULTS)
-    if metadata_enrichment is not None:
-        fields.update(metadata_enrichment)
-    return fields
+    return dict(metadata_enrichment or {})
 
 
 def _write_jsonl_records(

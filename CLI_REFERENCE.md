@@ -242,6 +242,8 @@ Rules:
   input under `subtitles/`, the sibling `videos/` directory is used. For a
   single file outside `subtitles/`, `--out` should point at the standard
   `normalized/` directory so the sibling `videos/` directory can be found.
+- If neither the subtitle input nor `--out` identifies a standard output
+  layout, `export` returns `INVALID_INPUT` before writing JSONL.
 - Inferred or overridden `video_id` and language values must be safe filename
   parts. Unsafe values return `INVALID_INPUT` before writing any output.
 - Existing output files are not overwritten by default.

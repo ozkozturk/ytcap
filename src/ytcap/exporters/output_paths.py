@@ -65,6 +65,27 @@ def build_output_layout(root: str | Path) -> OutputLayout:
     return OutputLayout(root=Path(root))
 
 
+def infer_export_output_layout(input_path: str | Path, output_dir: str | Path) -> OutputLayout:
+    source_path = Path(input_path)
+    normalized_dir = Path(output_dir)
+
+    if source_path.parent.name == "subtitles":
+        return build_output_layout(source_path.parent.parent)
+    if source_path.name == "subtitles":
+        return build_output_layout(source_path.parent)
+    if normalized_dir.name == "normalized":
+        return build_output_layout(normalized_dir.parent)
+
+    raise YtcapError(
+        ErrorCode.INVALID_INPUT,
+        (
+            "could not infer standard output layout for metadata; "
+            "use subtitle input under a 'subtitles' directory or set --out to a 'normalized' directory"
+        ),
+        exit_code=2,
+    )
+
+
 def normalized_file_path(root: str | Path, *, video_id: str, language: str, segments: str) -> Path:
     filename = ".".join(
         [
