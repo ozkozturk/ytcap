@@ -562,6 +562,8 @@ class CliTest(unittest.TestCase):
                     "jsonl",
                     "--out",
                     str(output_dir),
+                    "--category",
+                    "education",
                 ]
             )
 
@@ -582,6 +584,8 @@ class CliTest(unittest.TestCase):
             self.assertIn("normalized_text", records[0])
             self.assertEqual(records[0]["video_title"], "Example Video")
             self.assertEqual(records[0]["channel_id"], "channel123")
+            self.assertEqual(records[0]["dataset_category"], "education")
+            self.assertEqual(records[0]["category_source"], "user")
 
     def test_export_requires_input(self) -> None:
         stderr = io.StringIO()

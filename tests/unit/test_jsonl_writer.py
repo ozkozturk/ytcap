@@ -35,6 +35,8 @@ METADATA_DEFAULTS = {
     "video_upload_date": None,
     "available_manual_subtitles": None,
     "downloaded_subtitles": None,
+    "dataset_category": None,
+    "category_source": "none",
 }
 
 
@@ -139,6 +141,8 @@ class JsonlWriterTest(unittest.TestCase):
                 "video_upload_date": "20260101",
                 "available_manual_subtitles": ["tr"],
                 "downloaded_subtitles": ["tr"],
+                "dataset_category": "education",
+                "category_source": "user",
             },
         )
 
@@ -146,6 +150,8 @@ class JsonlWriterTest(unittest.TestCase):
         self.assertEqual(record["channel_name"], "Example Channel")
         self.assertEqual(record["video_title"], "Example Video")
         self.assertEqual(record["available_manual_subtitles"], ["tr"])
+        self.assertEqual(record["dataset_category"], "education")
+        self.assertEqual(record["category_source"], "user")
 
     def test_write_cue_jsonl_file_writes_one_record_per_line(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

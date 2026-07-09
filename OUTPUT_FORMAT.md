@@ -177,7 +177,7 @@ data/normalized/{video_id}.{lang}.cue.jsonl
 Each line is one JSON object:
 
 ```json
-{"schema_version":"0.1","type":"cue","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":16.8,"text":"This is an example sentence.","normalized_text":"this is an example sentence","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"]}
+{"schema_version":"0.1","type":"cue","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":16.8,"text":"This is an example sentence.","normalized_text":"this is an example sentence","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"],"dataset_category":"education","category_source":"user"}
 ```
 
 Fields:
@@ -208,7 +208,7 @@ data/normalized/{video_id}.{lang}.sentence.jsonl
 Example line:
 
 ```json
-{"schema_version":"0.1","type":"sentence","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":18.2,"text":"This is an example sentence.","normalized_text":"this is an example sentence","sentence_index":1,"timing_strategy":"heuristic","channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"]}
+{"schema_version":"0.1","type":"sentence","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":18.2,"text":"This is an example sentence.","normalized_text":"this is an example sentence","sentence_index":1,"timing_strategy":"heuristic","channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"],"dataset_category":"education","category_source":"user"}
 ```
 
 Note:
@@ -262,6 +262,8 @@ Missing fields inside that metadata JSON are represented as `null`.
 | `video_upload_date` | string/null | Upload date from metadata |
 | `available_manual_subtitles` | array/null | Non-English manual subtitle languages available in metadata |
 | `downloaded_subtitles` | array/null | Non-English subtitle languages marked downloaded in metadata |
+| `dataset_category` | string/null | User-provided dataset category from `--category` |
+| `category_source` | string | `user` when `--category` is provided, otherwise `none` |
 
 `normalized_text` is intended for simple text search. It is computed from the
 record's `text` by Unicode normalizing, casefolding/lowercasing, removing
@@ -274,6 +276,9 @@ Subtitle language arrays exclude English language codes:
 en
 en-*
 ```
+
+When `--category` is omitted, `dataset_category` is `null` and
+`category_source` is `none`.
 
 ## 8. Run Manifest Model
 

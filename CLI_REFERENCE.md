@@ -226,6 +226,7 @@ Options:
 | `--out` | Output directory | `./data/normalized` |
 | `--video-id` | Video ID override for a single file | Optional |
 | `--lang` | Language override | Optional |
+| `--category` | Dataset category value for JSONL records | Optional |
 
 Rules:
 
@@ -261,6 +262,11 @@ Rules:
   non-English subtitle language arrays. English language codes `en` and `en-*`
   are excluded from `available_manual_subtitles` and `downloaded_subtitles`;
   empty arrays are represented as `null`.
+- If `--category` is provided, JSONL records use that value for
+  `dataset_category` and set `category_source` to `user`.
+- If `--category` is omitted, JSONL records use `dataset_category: null` and
+  `category_source: "none"`.
+- `--category` must not be empty.
 - `--video-id` and `--lang` overrides are valid only for a single file input.
 - Directory input requires each subtitle file to provide at least
   `VIDEO_ID.lang` in its file name.

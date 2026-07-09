@@ -27,6 +27,7 @@ class ExportSubtitlesOptions:
     output_dir: str | Path
     video_id: str | None = None
     language: str | None = None
+    category: str | None = None
 
 
 @dataclass(frozen=True)
@@ -69,13 +70,14 @@ class _PreparedSubtitleExport:
 
 def export_subtitles(options: ExportSubtitlesOptions) -> ExportSubtitlesResult:
     _validate_segments(options.segments)
+    category = _category_value(options.category)
     input_path = Path(options.input_path)
     subtitle_files = _subtitle_files(input_path, options=options)
     output_dir = Path(options.output_dir)
     jobs = _export_jobs(subtitle_files, output_dir=output_dir, options=options)
     _validate_output_paths(jobs)
     prepared_exports = tuple(
-        _prepare_subtitle_export(job, segments=options.segments)
+        _prepare_subtitle_export(job, segments=options.segments, category=category)
         for job in jobs
     )
 
@@ -190,8 +192,10 @@ def _prepare_subtitle_export(
     job: _ExportSubtitleJob,
     *,
     segments: str,
+    category: str | None,
 ) -> _PreparedSubtitleExport:
     metadata_enrichment = _metadata_enrichment_for_job(job)
+    metadata_enrichment.update(_category_enrichment(category))
     cues = tuple(_parse_subtitle_file(job.input_path))
     if segments == "cue":
         return _PreparedSubtitleExport(
@@ -411,6 +415,28 @@ def _validate_segments(segments: str) -> None:
         f"unsupported segment type '{segments}'; supported segments: {supported}",
         exit_code=2,
     )
+
+
+def _category_value(category: str | None) -> str | None:
+    if category is None:
+        return None
+    value = category.strip()
+    if value:
+        return value
+    raise YtcapError(
+        ErrorCode.INVALID_INPUT,
+        "--category must not be empty",
+        exit_code=2,
+    )
+
+
+def _category_enrichment(category: str | None) -> dict[str, str]:
+    if category is None:
+        return {}
+    return {
+        "dataset_category": category,
+        "category_source": "user",
+    }
 
 
 def _validate_supported_file(path: Path) -> None:

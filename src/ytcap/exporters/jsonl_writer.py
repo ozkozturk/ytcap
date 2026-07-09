@@ -24,6 +24,8 @@ METADATA_ENRICHMENT_DEFAULTS: dict[str, Any] = {
     "video_upload_date": None,
     "available_manual_subtitles": None,
     "downloaded_subtitles": None,
+    "dataset_category": None,
+    "category_source": "none",
 }
 
 

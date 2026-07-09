@@ -11,6 +11,8 @@ The format follows the spirit of "Keep a Changelog".
 - Added enriched `export` JSONL records with `normalized_text`, compact video
   and channel metadata, and non-English subtitle language arrays from
   `videos/{video_id}.info.json`.
+- Added `export --category` to populate `dataset_category` and
+  `category_source` in JSONL records.
 
 ## [0.1.1] - 2026-07-07
 

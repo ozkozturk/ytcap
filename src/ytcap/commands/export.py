@@ -18,6 +18,7 @@ def configure_parser(parser: ArgumentParser) -> None:
     parser.add_argument("--out", default="./data/normalized", help="output directory")
     parser.add_argument("--video-id", help="video ID override for a single file")
     parser.add_argument("--lang", help="language override")
+    parser.add_argument("--category", help="dataset category value for exported JSONL records")
     parser.set_defaults(handler=handle)
 
 
@@ -39,6 +40,7 @@ def _options_from_args(args: Namespace) -> ExportSubtitlesOptions:
         output_dir=args.out,
         video_id=args.video_id,
         language=args.lang,
+        category=args.category,
     )
 
 

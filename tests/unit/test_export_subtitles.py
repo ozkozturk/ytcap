@@ -124,6 +124,8 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertEqual(records[0]["video_title"], "Video abc123")
             self.assertEqual(records[0]["available_manual_subtitles"], ["tr"])
             self.assertEqual(records[0]["downloaded_subtitles"], ["de"])
+            self.assertIsNone(records[0]["dataset_category"])
+            self.assertEqual(records[0]["category_source"], "none")
 
     def test_single_vtt_file_exports_sentence_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -261,6 +263,41 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertIsNone(records[0]["video_title"])
             self.assertIsNone(records[0]["available_manual_subtitles"])
             self.assertIsNone(records[0]["downloaded_subtitles"])
+
+    def test_category_exports_user_dataset_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "subtitles" / "abc123.en.manual.srt"
+            subtitle_path.parent.mkdir()
+            subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
+            write_metadata(root, "abc123")
+
+            export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path=subtitle_path,
+                    segments="cue",
+                    output_dir=root / "normalized",
+                    category=" education ",
+                )
+            )
+
+            records = read_jsonl(root / "normalized" / "abc123.en.cue.jsonl")
+            self.assertEqual(records[0]["dataset_category"], "education")
+            self.assertEqual(records[0]["category_source"], "user")
+
+    def test_empty_category_returns_invalid_input(self) -> None:
+        with self.assertRaises(YtcapError) as raised:
+            export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path="missing.srt",
+                    segments="cue",
+                    output_dir="normalized",
+                    category="  ",
+                )
+            )
+
+        self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
+        self.assertIn("--category must not be empty", raised.exception.message)
 
     def test_missing_metadata_file_rejects_before_writing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

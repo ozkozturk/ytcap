@@ -151,7 +151,7 @@ ytcap inspect --url "https://www.youtube.com/watch?v=VIDEO_ID" --list-subs
 ### Convert Existing Subtitles to JSONL
 
 ```bash
-ytcap export --input ./data/subtitles/VIDEO_ID.en.manual.srt --segments cue --out ./data/normalized
+ytcap export --input ./data/subtitles/VIDEO_ID.en.manual.srt --segments cue --category education --out ./data/normalized
 ```
 
 ```bash
@@ -170,7 +170,9 @@ Export expects the matching normalized metadata file at
 keeps the display `text`, adds a search-friendly `normalized_text`, and copies
 compact video, channel, available manual subtitle language, and downloaded
 subtitle language metadata from that file. English subtitle languages (`en` and
-`en-*`) are excluded from the subtitle language arrays.
+`en-*`) are excluded from the subtitle language arrays. When `--category` is
+provided, JSONL records include `dataset_category` with that value and
+`category_source:"user"`; otherwise those fields are `null` and `"none"`.
 
 Dynamic filename parts such as video ID, language, source, format, segment type,
 and run ID are validated before paths are built. Empty values, path separators,
@@ -238,7 +240,7 @@ data/
 Example cue-level JSONL line:
 
 ```json
-{"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","normalized_text":"example subtitle text","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_webpage_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"]}
+{"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","normalized_text":"example subtitle text","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_webpage_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"],"dataset_category":"education","category_source":"user"}
 ```
 
 Sentence-level segmentation uses a simple standard-library heuristic that
