@@ -9,7 +9,7 @@ It is designed for workflows where you have YouTube video URLs, video IDs, or pl
 The current public release is:
 
 ```text
-0.1.3
+0.1.4
 ```
 
 Release pages:
