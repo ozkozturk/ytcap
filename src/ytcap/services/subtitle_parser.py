@@ -126,8 +126,8 @@ def _parse_srt_block(block: str, *, block_number: int) -> SubtitleCue:
 
     start = _timestamp_to_seconds(timestamp_match.group("start"))
     end = _timestamp_to_seconds(timestamp_match.group("end"))
-    if end <= start:
-        _raise_malformed(block_number, "end timestamp must be after start timestamp")
+    if end < start:
+        _raise_malformed(block_number, "end timestamp cannot be before start timestamp")
 
     text = _clean_cue_text(lines[2:])
     return SubtitleCue(index=index, start=start, end=end, text=text)
@@ -168,8 +168,8 @@ def _parse_vtt_block(block: str, *, block_number: int) -> SubtitleCue:
 
     start = _timestamp_to_seconds(timestamp_match.group("start"))
     end = _timestamp_to_seconds(timestamp_match.group("end"))
-    if end <= start:
-        _raise_malformed_vtt(block_number, "end timestamp must be after start timestamp")
+    if end < start:
+        _raise_malformed_vtt(block_number, "end timestamp cannot be before start timestamp")
 
     text = _clean_cue_text(lines[timestamp_line_index + 1 :])
     return SubtitleCue(index=cue_index, start=start, end=end, text=text)

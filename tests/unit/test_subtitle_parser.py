@@ -106,7 +106,15 @@ class SubtitleParserTest(unittest.TestCase):
             parse_srt_text(text)
 
         self.assertEqual(raised.exception.code, ErrorCode.PARSE_FAILED)
-        self.assertIn("end timestamp must be after start timestamp", raised.exception.message)
+        self.assertIn("end timestamp cannot be before start timestamp", raised.exception.message)
+
+    def test_parse_srt_text_handles_zero_duration_cues(self) -> None:
+        text = "1\n00:02:59,840 --> 00:02:59,840\n[Music]\n"
+        cues = parse_srt_text(text)
+        self.assertEqual(len(cues), 1)
+        self.assertEqual(cues[0].start, cues[0].end)
+        self.assertEqual(cues[0].text, "[Music]")
+
 
     def test_parse_srt_text_handles_blank_lines_inside_cue(self) -> None:
         text = (
