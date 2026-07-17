@@ -90,6 +90,16 @@ class TestProcessPlaylist(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
+    def test_process_playlist_options_url_cleans_backslashes(self) -> None:
+        options = ProcessPlaylistOptions(
+            url="https://www.youtube.com/playlist\\?list\\=PLabc123",
+            language="en",
+            source="any",
+            subtitle_format="srt",
+            output_dir=self.out_dir,
+        )
+        self.assertEqual(options.url, "https://www.youtube.com/playlist?list=PLabc123")
+
     def test_process_playlist_success(self) -> None:
         options = ProcessPlaylistOptions(
             url="https://www.youtube.com/playlist?list=PLabc123",

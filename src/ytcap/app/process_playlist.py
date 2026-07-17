@@ -39,6 +39,10 @@ class ProcessPlaylistOptions:
     resume: bool = False
     dry_run: bool = False
 
+    def __post_init__(self) -> None:
+        if self.url:
+            object.__setattr__(self, "url", self.url.replace("\\", ""))
+
 
 @dataclass(frozen=True)
 class ProcessPlaylistResult:

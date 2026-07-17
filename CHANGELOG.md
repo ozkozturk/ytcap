@@ -6,7 +6,10 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Normalized URLs containing escaped backslashes in CLI input to prevent 404 errors during extraction.
+- Improved subtitle parsing robustness by rejoining cue blocks split by internal blank lines and supporting empty/silent subtitle cues.
 
 ## [0.1.2] - 2026-07-10
 

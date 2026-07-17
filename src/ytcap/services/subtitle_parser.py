@@ -38,8 +38,22 @@ def parse_srt_text(text: str) -> list[SubtitleCue]:
     if not normalized_text:
         return []
 
+    raw_blocks = _split_subtitle_blocks(normalized_text)
+    merged_blocks: list[str] = []
+    for block in raw_blocks:
+        lines = [line.strip() for line in block.split("\n")]
+        is_new_block = False
+        if len(lines) >= 2:
+            if SRT_TIMESTAMP_RE.match(lines[1]):
+                is_new_block = True
+
+        if is_new_block or not merged_blocks:
+            merged_blocks.append(block)
+        else:
+            merged_blocks[-1] = merged_blocks[-1] + "\n\n" + block
+
     cues: list[SubtitleCue] = []
-    for block_number, block in enumerate(_split_subtitle_blocks(normalized_text), start=1):
+    for block_number, block in enumerate(merged_blocks, start=1):
         cues.append(_parse_srt_block(block, block_number=block_number))
     return cues
 
@@ -65,8 +79,27 @@ def parse_vtt_text(text: str) -> list[SubtitleCue]:
     if not cue_text:
         return []
 
+    raw_blocks = _split_subtitle_blocks(cue_text)
+    merged_blocks: list[str] = []
+    for block in raw_blocks:
+        lines = [line.strip() for line in block.split("\n")]
+        is_new_block = False
+        if len(lines) >= 1:
+            first_line = lines[0]
+            if any(first_line == prefix or first_line.startswith(f"{prefix} ") for prefix in VTT_NON_CUE_PREFIXES):
+                is_new_block = True
+            elif VTT_TIMESTAMP_RE.match(first_line):
+                is_new_block = True
+            elif len(lines) >= 2 and VTT_TIMESTAMP_RE.match(lines[1]):
+                is_new_block = True
+
+        if is_new_block or not merged_blocks:
+            merged_blocks.append(block)
+        else:
+            merged_blocks[-1] = merged_blocks[-1] + "\n\n" + block
+
     cues: list[SubtitleCue] = []
-    for block_number, block in enumerate(_split_subtitle_blocks(cue_text), start=1):
+    for block_number, block in enumerate(merged_blocks, start=1):
         if _is_vtt_non_cue_block(block):
             continue
         cues.append(_parse_vtt_block(block, block_number=block_number))
@@ -79,8 +112,8 @@ def _split_subtitle_blocks(text: str) -> list[str]:
 
 def _parse_srt_block(block: str, *, block_number: int) -> SubtitleCue:
     lines = [line.strip() for line in block.split("\n")]
-    if len(lines) < 3:
-        _raise_malformed(block_number, "expected index, timestamp, and text lines")
+    if len(lines) < 2:
+        _raise_malformed(block_number, "expected index and timestamp lines")
 
     index_line = lines[0]
     if not index_line.isdigit():
@@ -97,9 +130,6 @@ def _parse_srt_block(block: str, *, block_number: int) -> SubtitleCue:
         _raise_malformed(block_number, "end timestamp must be after start timestamp")
 
     text = _clean_cue_text(lines[2:])
-    if not text:
-        _raise_malformed(block_number, "expected cue text")
-
     return SubtitleCue(index=index, start=start, end=end, text=text)
 
 
@@ -121,15 +151,15 @@ def _is_vtt_non_cue_block(block: str) -> bool:
 
 def _parse_vtt_block(block: str, *, block_number: int) -> SubtitleCue:
     lines = [line.strip() for line in block.split("\n")]
-    if len(lines) < 2:
-        _raise_malformed_vtt(block_number, "expected timestamp and text lines")
+    if len(lines) < 1:
+        _raise_malformed_vtt(block_number, "expected timestamp line")
 
     timestamp_line_index = 0
     timestamp_match = VTT_TIMESTAMP_RE.match(lines[0])
     cue_index: int | None = None
     if timestamp_match is None:
-        if len(lines) < 3:
-            _raise_malformed_vtt(block_number, "expected cue identifier, timestamp, and text lines")
+        if len(lines) < 2:
+            _raise_malformed_vtt(block_number, "expected cue identifier and timestamp lines")
         cue_index = int(lines[0]) if lines[0].isdigit() else None
         timestamp_line_index = 1
         timestamp_match = VTT_TIMESTAMP_RE.match(lines[1])
@@ -142,9 +172,6 @@ def _parse_vtt_block(block: str, *, block_number: int) -> SubtitleCue:
         _raise_malformed_vtt(block_number, "end timestamp must be after start timestamp")
 
     text = _clean_cue_text(lines[timestamp_line_index + 1 :])
-    if not text:
-        _raise_malformed_vtt(block_number, "expected cue text")
-
     return SubtitleCue(index=cue_index, start=start, end=end, text=text)
 
 

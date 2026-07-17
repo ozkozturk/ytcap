@@ -108,6 +108,48 @@ class SubtitleParserTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, ErrorCode.PARSE_FAILED)
         self.assertIn("end timestamp must be after start timestamp", raised.exception.message)
 
+    def test_parse_srt_text_handles_blank_lines_inside_cue(self) -> None:
+        text = (
+            "187\n"
+            "00:09:39,480 --> 00:09:43,280\n"
+            "And the Romans… lost to them.\n"
+            " \n"
+            "And not just a bit.\n"
+        )
+        cues = parse_srt_text(text)
+        self.assertEqual(len(cues), 1)
+        self.assertEqual(cues[0].text, "And the Romans… lost to them.\nAnd not just a bit.")
+
+    def test_parse_srt_text_handles_empty_cues(self) -> None:
+        text = (
+            "24\n"
+            "00:02:38,040 --> 00:02:38,540\n"
+        )
+        cues = parse_srt_text(text)
+        self.assertEqual(len(cues), 1)
+        self.assertEqual(cues[0].text, "")
+
+    def test_parse_vtt_text_handles_blank_lines_inside_cue(self) -> None:
+        text = (
+            "WEBVTT\n\n"
+            "00:09:39.480 --> 00:09:43.280\n"
+            "And the Romans… lost to them.\n"
+            " \n"
+            "And not just a bit.\n"
+        )
+        cues = parse_vtt_text(text)
+        self.assertEqual(len(cues), 1)
+        self.assertEqual(cues[0].text, "And the Romans… lost to them.\nAnd not just a bit.")
+
+    def test_parse_vtt_text_handles_empty_cues(self) -> None:
+        text = (
+            "WEBVTT\n\n"
+            "00:02:38.040 --> 00:02:38.540\n"
+        )
+        cues = parse_vtt_text(text)
+        self.assertEqual(len(cues), 1)
+        self.assertEqual(cues[0].text, "")
+
     def test_parse_vtt_file_returns_cues(self) -> None:
         cues = parse_vtt_file(FIXTURE_DIR / "sample.en.vtt")
 

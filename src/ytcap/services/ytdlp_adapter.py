@@ -26,6 +26,10 @@ class VideoSource:
     url: str | None = None
     video_id: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.url:
+            object.__setattr__(self, "url", self.url.replace("\\", ""))
+
     def target(self) -> str:
         if self.url:
             return self.url

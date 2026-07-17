@@ -31,6 +31,10 @@ class YtDlpAdapterTest(unittest.TestCase):
     def test_video_id_source_builds_watch_url(self) -> None:
         self.assertEqual(VideoSource(video_id="abc123").target(), "https://www.youtube.com/watch?v=abc123")
 
+    def test_video_source_url_cleans_backslashes(self) -> None:
+        source = VideoSource(url="https://youtube.com/playlist\\?list\\=PLSqv95sJywqI\\&si\\=xa6ExQZrvNMRRCCt")
+        self.assertEqual(source.url, "https://youtube.com/playlist?list=PLSqv95sJywqI&si=xa6ExQZrvNMRRCCt")
+
     @patch("ytcap.services.ytdlp_adapter.shutil.which", return_value=None)
     def test_missing_ytdlp_returns_controlled_error(self, _which: object) -> None:
         adapter = YtDlpAdapter(executable="missing-yt-dlp")
