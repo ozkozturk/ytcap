@@ -6,6 +6,10 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.3] - 2026-07-17
+
 ### Fixed
 
 - Normalized URLs containing escaped backslashes in CLI input to prevent 404 errors during extraction.
