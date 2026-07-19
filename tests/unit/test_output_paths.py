@@ -51,6 +51,13 @@ class OutputPathsTest(unittest.TestCase):
                 self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
                 self.assertEqual(raised.exception.exit_code, 2)
 
+    def test_safe_filename_part_accepts_valid_and_leading_special_characters(self) -> None:
+        valid_values = ["abc123", "--NqGw9rfNA", "_NqGw9rfNA", "en-US", "en.manual.srt"]
+
+        for value in valid_values:
+            with self.subTest(value=value):
+                self.assertEqual(safe_filename_part(value, field_name="video_id"), value)
+
     def test_layout_rejects_unsafe_dynamic_path_parts(self) -> None:
         layout = build_output_layout(Path("data"))
 

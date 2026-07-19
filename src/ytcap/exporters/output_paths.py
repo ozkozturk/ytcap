@@ -10,7 +10,7 @@ from ytcap.errors import ErrorCode, YtcapError
 
 
 OUTPUT_DIRECTORIES = ("videos", "subtitles", "normalized", "runs", "failed")
-SAFE_FILENAME_PART_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+SAFE_FILENAME_PART_RE = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9._-]*$")
 
 
 @dataclass(frozen=True)
