@@ -20,6 +20,8 @@ Current implementation status:
   `yt-dlp`, with `--limit`, `--start`, and `--end` range controls.
   Supports `--resume` or `--skip-existing`, `--fail-fast`, `--max-errors`,
   and `--dry-run`.
+- `channel` processes YouTube channels by extracting video entries through
+  `yt-dlp`, with range controls, `--ignore-no-subs` filtering, and standard run rules.
 - Dynamic output filename parts are validated before paths are built, so user
   input or extractor metadata cannot escape the selected output directories.
 
@@ -397,7 +399,65 @@ Rules:
 - `--dry-run` writes no files or directories and avoids per-video
   metadata/subtitle extraction.
 
-## 8. Exit Code Policy
+
+## 8. `channel` Command
+
+Status: implemented.
+
+Purpose:
+
+- Process videos inside a YouTube channel URL or ID.
+
+Usage:
+
+```bash
+ytcap channel --url "https://www.youtube.com/@TED" --limit 50 --lang en --source manual --ignore-no-subs --out ./data
+```
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--url` | YouTube channel URL |
+| `--id` | YouTube channel ID |
+| `--limit` | Maximum number of videos to process |
+| `--start` | Start index (1-based) |
+| `--end` | End index (inclusive) |
+| `--lang` | Subtitle language |
+| `--source` | `manual`, `auto`, `any` |
+| `--format` | `srt`, `vtt` |
+| `--out` | Output directory |
+| `--skip-existing` | Skip already processed videos |
+| `--fail-fast` | Stop at the first error |
+| `--max-errors` | Stop after the given number of errors |
+| `--resume` | Continue an interrupted run |
+| `--dry-run` | Show planned work without writing files |
+| `--ignore-no-subs` | Skip videos without the requested subtitle track instead of treating them as failures |
+
+Rules:
+
+- `--url` and `--id` cannot be used together.
+- One of `--url` or `--id` is required.
+- `--start` is 1-based and must be a positive integer.
+- `--end` is inclusive and must be greater than or equal to `--start`.
+- `--limit` must be a positive integer when provided.
+- Channel URLs are normalized by appending `/videos` if not already targeting a tab (e.g. `https://www.youtube.com/@TED` -> `https://www.youtube.com/@TED/videos`).
+- Flat playlist extraction fetches only up to the required limit via `--playlist-end` for massive speed improvement on channels.
+- Sub-playlists/folders or nested channel tabs are ignored; only video URL entries are processed.
+- `--ignore-no-subs` treats `SUBTITLE_NOT_FOUND` errors as skipped rather than failed.
+- Range selection applies `--start` and `--end` first, then applies `--limit`.
+- `--skip-existing` skips only when the existing metadata points to a downloaded
+  subtitle matching the requested `--lang`, `--source`, and `--format`.
+  `--source any` accepts either an existing manual or automatic subtitle.
+- `--resume` continues only from the latest channel manifest with the same
+  channel URL and output-affecting options: `--lang`, `--source`, `--format`,
+  `--limit`, `--start`, `--end`, and `--ignore-no-subs`.
+- `--skip-existing` and `--resume` cannot be used together for `channel`.
+- `--dry-run` writes no files or directories and avoids per-video
+  metadata/subtitle extraction.
+
+
+## 9. Exit Code Policy
 
 | Exit code | Meaning |
 |---|---|
@@ -408,7 +468,7 @@ Rules:
 | `4` | Subtitle not found |
 | `5` | File write error |
 
-## 9. Error Message Format
+## 10. Error Message Format
 
 Human-readable format:
 
@@ -436,7 +496,7 @@ provided; other commands continue to use the human-readable stderr format.
 }
 ```
 
-## 10. Conflicting Flag Rules
+## 11. Conflicting Flag Rules
 
 | Combination | Behavior |
 |---|---|
@@ -444,11 +504,12 @@ provided; other commands continue to use the human-readable stderr format.
 | `--url` + `--id` | Error |
 | `--skip-existing` + `--overwrite` | Error |
 | `playlist --skip-existing` + `playlist --resume` | Error |
+| `channel --skip-existing` + `channel --resume` | Error |
 | `--metadata-only` + `--subs-only` | Error |
 | Invalid `--source` | Error |
 | Invalid `--format` | Error |
 
-## 11. Dry Run Behavior
+## 12. Dry Run Behavior
 
 When `--dry-run` is provided:
 

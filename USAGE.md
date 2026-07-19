@@ -50,8 +50,9 @@ Not every video has subtitles.
 In that case:
 
 - The single-video command should return a controlled error.
-- Batch and playlist commands should add the affected video to the failed output and continue.
+- Batch, playlist, and channel commands should add the affected video to the failed output and continue.
 - If `--fail-fast` is provided, processing may stop at the first error.
+- For the `channel` command, you can use `--ignore-no-subs` to skip videos lacking the requested subtitle track without treating them as failures.
 
 ## 6. Network and Extractor Fragility
 
@@ -65,7 +66,7 @@ For that reason:
 
 ## 7. Large Batch Runs
 
-Large batch or playlist runs can involve:
+Large batch, playlist, or channel runs can involve:
 
 - Long runtimes
 - Rate-limit-like errors

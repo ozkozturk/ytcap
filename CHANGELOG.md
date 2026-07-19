@@ -8,6 +8,19 @@ The format follows the spirit of "Keep a Changelog".
 
 Nothing yet.
 
+## [0.2.0] - 2026-07-19
+
+### Added
+
+- Added `channel` command to process all videos inside a YouTube channel target, by channel ID or URL.
+- Added `--ignore-no-subs` flag to the `channel` command to skip videos lacking the requested subtitle track instead of counting them as failures.
+
+### Changed
+
+- Optimized flat playlist extraction in both `playlist` and `channel` commands by calculating `playlist_end` and passing it via `--playlist-end` to `yt-dlp`, preventing unnecessary fetching of entire large playlists/channels.
+- Added channel URL normalization to automatically append `/videos` if a channel URL lacks a specific tab, targeting uploaded videos directly.
+- Enhanced `_playlist_entry_source` to filter out non-video entries (such as nested sub-playlists or channel tabs returned by `yt-dlp`).
+
 ## [0.1.5] - 2026-07-19
 
 ### Fixed

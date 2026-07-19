@@ -55,8 +55,8 @@ class FakePlaylistVideoAdapter:
             res["id"] = source.video_id
         return res
 
-    def extract_playlist_entries(self, source: VideoSource) -> list[VideoSource]:
-        self.calls.append({"method": "extract_playlist_entries", "source": source})
+    def extract_playlist_entries(self, source: VideoSource, *, playlist_end: int | None = None) -> list[VideoSource]:
+        self.calls.append({"method": "extract_playlist_entries", "source": source, "playlist_end": playlist_end})
         return list(self._entries)
 
     def download_subtitle(

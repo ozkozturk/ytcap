@@ -82,7 +82,7 @@ class YtDlpAdapter:
             raise YtcapError(ErrorCode.PARSE_FAILED, "yt-dlp returned unexpected metadata", exit_code=3)
         return raw
 
-    def extract_playlist_entries(self, source: VideoSource) -> list[VideoSource]:
+    def extract_playlist_entries(self, source: VideoSource, *, playlist_end: int | None = None) -> list[VideoSource]:
         command_prefix = self._require_command_prefix()
 
         command = [
@@ -91,8 +91,10 @@ class YtDlpAdapter:
             "--skip-download",
             "--dump-single-json",
             "--no-warnings",
-            source.target(),
         ]
+        if playlist_end is not None:
+            command.extend(["--playlist-end", str(playlist_end)])
+        command.append(source.target())
         try:
             completed = subprocess.run(command, capture_output=True, text=True, check=False)
         except FileNotFoundError as exc:
@@ -136,6 +138,24 @@ class YtDlpAdapter:
                 exit_code=3,
             )
         return sources
+
+    def extract_channel_entries(self, source: VideoSource, *, playlist_end: int | None = None) -> list[VideoSource]:
+        try:
+            return self.extract_playlist_entries(source, playlist_end=playlist_end)
+        except YtcapError as exc:
+            if exc.code == ErrorCode.PARSE_FAILED and "playlist" in exc.message:
+                raise YtcapError(
+                    ErrorCode.PARSE_FAILED,
+                    exc.message.replace("playlist", "channel"),
+                    exit_code=3,
+                ) from exc
+            if exc.code == ErrorCode.YTDLP_FAILED and "playlist" in exc.message:
+                raise YtcapError(
+                    ErrorCode.YTDLP_FAILED,
+                    exc.message.replace("playlist", "channel"),
+                    exit_code=3,
+                ) from exc
+            raise exc
 
     def download_subtitle(
         self,
@@ -307,6 +327,8 @@ def _subtitle_write_flag(subtitle_source: str) -> str:
 
 
 def _playlist_entry_source(entry: dict[str, Any]) -> VideoSource | None:
+    if entry.get("_type") in {"playlist", "folder"}:
+        return None
     entry_id = _clean_string(entry.get("id"))
     webpage_url = _clean_string(entry.get("webpage_url"))
     if webpage_url and _is_http_url(webpage_url):

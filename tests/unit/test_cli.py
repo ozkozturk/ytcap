@@ -859,6 +859,158 @@ class CliTest(unittest.TestCase):
         options = mock_process.call_args_list[0].args[0]
         self.assertTrue(options.dry_run)
 
+    def test_channel_help_visible(self) -> None:
+        parser = build_parser()
+        with self.assertRaises(SystemExit) as raised, contextlib.redirect_stdout(io.StringIO()) as stdout:
+            parser.parse_args(["channel", "--help"])
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("channel", stdout.getvalue())
+
+    def test_channel_rejects_conflicting_url_and_id(self) -> None:
+        exit_code, _, stderr = self.run_cli(
+            ["channel", "--url", "https://example.test", "--id", "UCabc123"]
+        )
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: CONFLICTING_FLAGS", stderr)
+
+    def test_channel_requires_url_or_id(self) -> None:
+        exit_code, _, stderr = self.run_cli(["channel"])
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: INVALID_INPUT", stderr)
+
+    def test_channel_rejects_invalid_start(self) -> None:
+        exit_code, _, stderr = self.run_cli(["channel", "--url", "https://example.test", "--start", "0"])
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: INVALID_INPUT", stderr)
+
+    def test_channel_rejects_end_before_start(self) -> None:
+        exit_code, _, stderr = self.run_cli(
+            ["channel", "--url", "https://example.test", "--start", "5", "--end", "3"]
+        )
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: INVALID_INPUT", stderr)
+
+    def test_channel_rejects_invalid_limit(self) -> None:
+        exit_code, _, stderr = self.run_cli(["channel", "--url", "https://example.test", "--limit", "0"])
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: INVALID_INPUT", stderr)
+
+    def test_channel_rejects_non_positive_max_errors(self) -> None:
+        exit_code, _, stderr = self.run_cli(
+            ["channel", "--url", "https://example.test", "--max-errors", "0"]
+        )
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: INVALID_INPUT", stderr)
+
+    def test_channel_rejects_skip_existing_with_resume(self) -> None:
+        exit_code, _, stderr = self.run_cli(
+            ["channel", "--url", "https://example.test", "--skip-existing", "--resume"]
+        )
+        self.assertEqual(exit_code, 2)
+        self.assertIn("code: CONFLICTING_FLAGS", stderr)
+
+    def test_channel_rejects_unsupported_subtitle_format(self) -> None:
+        exit_code, _, stderr = self.run_cli(
+            ["channel", "--url", "https://example.test", "--format", "json"]
+        )
+        self.assertEqual(exit_code, 2)
+        self.assertIn("unsupported subtitle format 'json'", stderr)
+        self.assertIn("code: UNSUPPORTED_FORMAT", stderr)
+
+    @patch("ytcap.commands.channel.process_channel")
+    def test_channel_command_routes_options(self, mock_process: object) -> None:
+        from ytcap.app.process_channel import ProcessChannelResult
+        mock_process.return_value = ProcessChannelResult(
+            run_id="2026-07-06T20-00-00Z",
+            started_at="2026-07-06T20:00:00Z",
+            finished_at="2026-07-06T20:01:00Z",
+            total=10,
+            ok=8,
+            skipped=1,
+            failed=1,
+            manifest_path=Path("dummy.json"),
+        )
+
+        exit_code, stdout, stderr = self.run_cli([
+            "channel",
+            "--url",
+            "https://www.youtube.com/channel/UCabc123",
+            "--lang",
+            "tr",
+            "--source",
+            "manual",
+            "--format",
+            "vtt",
+            "--out",
+            "./out",
+            "--limit",
+            "5",
+            "--start",
+            "2",
+            "--end",
+            "8",
+            "--ignore-no-subs",
+        ])
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(stderr, "")
+        self.assertIn("Channel command completed.", stdout)
+
+        options = mock_process.call_args_list[0].args[0]
+        self.assertEqual(options.url, "https://www.youtube.com/channel/UCabc123")
+        self.assertEqual(options.language, "tr")
+        self.assertEqual(options.source, "manual")
+        self.assertEqual(options.subtitle_format, "vtt")
+        self.assertEqual(options.output_dir, "./out")
+        self.assertEqual(options.limit, 5)
+        self.assertEqual(options.start, 2)
+        self.assertEqual(options.end, 8)
+        self.assertTrue(options.ignore_no_subs)
+
+    @patch("ytcap.commands.channel.process_channel")
+    def test_channel_id_converts_to_channel_url(self, mock_process: object) -> None:
+        from ytcap.app.process_channel import ProcessChannelResult
+        mock_process.return_value = ProcessChannelResult(
+            run_id="2026-07-06T20-00-00Z",
+            started_at="2026-07-06T20:00:00Z",
+            finished_at="2026-07-06T20:01:00Z",
+            total=1,
+            ok=1,
+            skipped=0,
+            failed=0,
+            manifest_path=Path("dummy.json"),
+        )
+
+        exit_code, _, _ = self.run_cli(["channel", "--id", "UCabc123"])
+
+        self.assertEqual(exit_code, 0)
+        options = mock_process.call_args_list[0].args[0]
+        self.assertEqual(options.url, "https://www.youtube.com/channel/UCabc123")
+
+    @patch("ytcap.commands.channel.process_channel")
+    def test_channel_dry_run_passes_flag(self, mock_process: object) -> None:
+        from ytcap.app.process_channel import ProcessChannelResult
+        mock_process.return_value = ProcessChannelResult(
+            run_id="2026-07-06T20-00-00Z",
+            started_at="2026-07-06T20:00:00Z",
+            finished_at="2026-07-06T20:01:00Z",
+            total=10,
+            ok=10,
+            skipped=0,
+            failed=0,
+            manifest_path=Path("dummy.json"),
+        )
+
+        exit_code, stdout, stderr = self.run_cli(
+            ["channel", "--url", "https://example.test", "--dry-run"]
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("Dry run: no files written.", stdout)
+        options = mock_process.call_args_list[0].args[0]
+        self.assertTrue(options.dry_run)
+
 
 if __name__ == "__main__":
     unittest.main()

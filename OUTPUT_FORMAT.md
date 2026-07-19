@@ -282,7 +282,7 @@ When `--category` is omitted, `dataset_category` is `null` and
 
 ## 8. Run Manifest Model
 
-Batch or playlist processing should keep a manifest for each run.
+Batch, playlist, or channel processing should keep a manifest for each run.
 
 Target file path:
 

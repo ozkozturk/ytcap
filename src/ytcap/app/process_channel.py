@@ -1,4 +1,4 @@
-"""Playlist processing use case."""
+"""Channel processing use case."""
 
 from __future__ import annotations
 
@@ -18,13 +18,13 @@ from ytcap.exporters.output_paths import build_output_layout, ensure_output_layo
 from ytcap.services.ytdlp_adapter import VideoSource
 
 
-class PlaylistProcessingAdapter(VideoProcessingAdapter, Protocol):
-    def extract_playlist_entries(self, source: VideoSource, *, playlist_end: int | None = None) -> list[VideoSource]:
+class ChannelProcessingAdapter(VideoProcessingAdapter, Protocol):
+    def extract_channel_entries(self, source: VideoSource, *, playlist_end: int | None = None) -> list[VideoSource]:
         ...
 
 
 @dataclass(frozen=True)
-class ProcessPlaylistOptions:
+class ProcessChannelOptions:
     url: str
     language: str
     source: str
@@ -38,6 +38,7 @@ class ProcessPlaylistOptions:
     max_errors: int | None = None
     resume: bool = False
     dry_run: bool = False
+    ignore_no_subs: bool = False
 
     def __post_init__(self) -> None:
         if self.url:
@@ -45,7 +46,7 @@ class ProcessPlaylistOptions:
 
 
 @dataclass(frozen=True)
-class ProcessPlaylistResult:
+class ProcessChannelResult:
     run_id: str
     started_at: str
     finished_at: str
@@ -82,20 +83,20 @@ def _apply_range(
     return entries
 
 
-def _matching_resume_manifest(options: ProcessPlaylistOptions, manifest_files: list[Path]) -> dict[str, Any] | None:
+def _matching_resume_manifest(options: ProcessChannelOptions, manifest_files: list[Path]) -> dict[str, Any] | None:
     for manifest_path in sorted(manifest_files, reverse=True):
         try:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 manifest = json.load(f)
         except (OSError, json.JSONDecodeError):
             continue
-        if _manifest_matches_playlist_options(manifest, options):
+        if _manifest_matches_channel_options(manifest, options):
             return manifest
     return None
 
 
-def _manifest_matches_playlist_options(manifest: dict[str, Any], options: ProcessPlaylistOptions) -> bool:
-    if manifest.get("command") != "playlist":
+def _manifest_matches_channel_options(manifest: dict[str, Any], options: ProcessChannelOptions) -> bool:
+    if manifest.get("command") != "channel":
         return False
 
     manifest_input = manifest.get("input")
@@ -113,16 +114,26 @@ def _manifest_matches_playlist_options(manifest: dict[str, Any], options: Proces
         "limit": options.limit,
         "start": options.start,
         "end": options.end,
+        "ignore_no_subs": options.ignore_no_subs,
     }
     return all(manifest_options.get(key) == value for key, value in expected.items())
 
 
-def process_playlist(
-    options: ProcessPlaylistOptions,
+def normalize_channel_url(url: str) -> str:
+    cleaned = url.rstrip("/")
+    tabs = {"/videos", "/shorts", "/streams", "/playlists", "/featured", "/about", "/community"}
+    if any(cleaned.endswith(tab) for tab in tabs):
+        return cleaned
+    return f"{cleaned}/videos"
+
+
+def process_channel(
+    options: ProcessChannelOptions,
     *,
-    adapter: PlaylistProcessingAdapter,
-) -> ProcessPlaylistResult:
-    playlist_source = VideoSource(url=options.url)
+    adapter: ChannelProcessingAdapter,
+) -> ProcessChannelResult:
+    channel_url = normalize_channel_url(options.url)
+    channel_source = VideoSource(url=channel_url)
 
     playlist_end = None
     if options.end is not None:
@@ -130,12 +141,12 @@ def process_playlist(
     elif options.limit is not None:
         playlist_end = options.start + options.limit - 1
 
-    entries = adapter.extract_playlist_entries(playlist_source, playlist_end=playlist_end)
+    entries = adapter.extract_channel_entries(channel_source, playlist_end=playlist_end)
 
     if not entries:
         raise YtcapError(
             ErrorCode.INVALID_INPUT,
-            "playlist did not contain any videos",
+            "channel did not contain any videos",
             exit_code=2,
         )
 
@@ -194,9 +205,9 @@ def process_playlist(
             "run_id": run_id,
             "started_at": started_at_str,
             "finished_at": finished_at_str,
-            "command": "playlist",
+            "command": "channel",
             "input": {
-                "type": "playlist",
+                "type": "channel",
                 "url": options.url,
             },
             "options": {
@@ -207,9 +218,10 @@ def process_playlist(
                 "limit": options.limit,
                 "start": options.start,
                 "end": options.end,
+                "ignore_no_subs": options.ignore_no_subs,
             },
             "summary": {
-                "playlist_entries": entry_count,
+                "channel_entries": entry_count,
                 "total": total,
                 "ok": ok_count,
                 "skipped": skipped_count,
@@ -240,7 +252,7 @@ def process_playlist(
                 ok_count += 1
 
         finished_at_str = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-        return ProcessPlaylistResult(
+        return ProcessChannelResult(
             run_id=run_id,
             started_at=started_at_str,
             finished_at=finished_at_str,
@@ -300,32 +312,35 @@ def process_playlist(
                     outputs.append(str(res.subtitle_path))
 
             except YtcapError as exc:
-                failed_count += 1
-                v_id = video_id or (res.video_id if res else None)
-                errors.append({
-                    "video_id": v_id,
-                    "code": exc.code.value,
-                    "message": exc.message,
-                })
-                append_failed_record(
-                    layout.failed_path(),
-                    video_id=v_id,
-                    url=source.url,
-                    code=exc.code.value,
-                    message=exc.message,
-                )
-
-                if options.fail_fast:
-                    write_manifest(datetime.now(UTC))
-                    raise exc
-
-                if options.max_errors is not None and failed_count >= options.max_errors:
-                    write_manifest(datetime.now(UTC))
-                    raise YtcapError(
-                        ErrorCode.YTDLP_FAILED,
-                        f"playlist processing aborted after reaching {options.max_errors} errors",
-                        exit_code=1,
+                if options.ignore_no_subs and exc.code == ErrorCode.SUBTITLE_NOT_FOUND:
+                    skipped_count += 1
+                else:
+                    failed_count += 1
+                    v_id = video_id or (res.video_id if res else None)
+                    errors.append({
+                        "video_id": v_id,
+                        "code": exc.code.value,
+                        "message": exc.message,
+                    })
+                    append_failed_record(
+                        layout.failed_path(),
+                        video_id=v_id,
+                        url=source.url,
+                        code=exc.code.value,
+                        message=exc.message,
                     )
+
+                    if options.fail_fast:
+                        write_manifest(datetime.now(UTC))
+                        raise exc
+
+                    if options.max_errors is not None and failed_count >= options.max_errors:
+                        write_manifest(datetime.now(UTC))
+                        raise YtcapError(
+                            ErrorCode.YTDLP_FAILED,
+                            f"channel processing aborted after reaching {options.max_errors} errors",
+                            exit_code=1,
+                        )
             except Exception as exc:
                 failed_count += 1
                 v_id = video_id
@@ -355,7 +370,7 @@ def process_playlist(
                     write_manifest(datetime.now(UTC))
                     raise YtcapError(
                         ErrorCode.YTDLP_FAILED,
-                        f"playlist processing aborted after reaching {options.max_errors} errors",
+                        f"channel processing aborted after reaching {options.max_errors} errors",
                         exit_code=1,
                     )
 
@@ -366,7 +381,7 @@ def process_playlist(
             write_manifest(datetime.now(UTC))
 
     finished_at_str = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-    return ProcessPlaylistResult(
+    return ProcessChannelResult(
         run_id=run_id,
         started_at=started_at_str,
         finished_at=finished_at_str,
