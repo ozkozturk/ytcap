@@ -8,6 +8,12 @@ The format follows the spirit of "Keep a Changelog".
 
 Nothing yet.
 
+## [0.1.5] - 2026-07-19
+
+### Fixed
+
+- Relaxed output filename validation in `SAFE_FILENAME_PART_RE` to allow leading hyphens (`-`) and underscores (`_`), fixing export errors on videos with IDs starting with these characters (e.g. `--NqGw9rfNA`).
+
 ## [0.1.4] - 2026-07-18
 
 ### Fixed
