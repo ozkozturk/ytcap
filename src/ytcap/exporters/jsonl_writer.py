@@ -154,10 +154,7 @@ def _write_jsonl_records(
                 exit_code=5,
             )
 
-    payload = "".join(
-        json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
-        for record in records
-    )
+    payload = serialize_jsonl_records(records).decode("utf-8")
     temporary_path = output_path.with_name(f".{output_path.name}.tmp")
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -170,3 +167,19 @@ def _write_jsonl_records(
             exit_code=5,
         ) from exc
     return True
+
+
+def serialize_jsonl_records(records: Sequence[dict[str, Any]]) -> bytes:
+    """Serialize records with the canonical ytcap JSONL byte policy."""
+
+    payload = "".join(
+        json.dumps(
+            record,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        )
+        + "\n"
+        for record in records
+    )
+    return payload.encode("utf-8")

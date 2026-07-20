@@ -6,6 +6,25 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
+### Added
+
+- Sentence export now writes a deterministic, self-validating companion
+  manifest with exact source/output/metadata SHA-256 values, producer and
+  segmentation versions, track identity, record count, playback configuration,
+  and timing-quality counts.
+- Added `ytcap verify --manifest ...` and a committed sentence artifact
+  contract bundle covering cue-internal and multi-cue sentence timing.
+
+### Changed
+
+- Sentence JSONL and manifest files are staged, validated, and published as a
+  pair so failed exports do not leave incomplete final artifacts.
+- Missing metadata sidecars now preserve existing enrichment fields as `null`
+  instead of preventing local SRT/VTT export. Existing but invalid metadata
+  still fails before output is published.
+- Documented independent schema evolution: the new manifest starts at `0.1`,
+  while the backward-compatible sentence JSONL row schema remains `0.1`.
+
 ## [0.3.0] - 2026-07-20
 
 ### Added

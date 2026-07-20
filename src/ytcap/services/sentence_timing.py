@@ -30,6 +30,7 @@ PLAYBACK_START_PADDING_SECONDS = 0.25
 PLAYBACK_END_PADDING_SECONDS = 0.40
 
 TIME_QUANTUM_DECIMALS = 3  # millisecond precision
+TIMING_ESTIMATOR = "weighted-token-v1"
 
 QUOTE_BRACKET_CHARACTERS = "\"'“”‘’()[]{}"
 WORD_RE = r"\w+(?:[.'’]\w+)*"

@@ -1,0 +1,49 @@
+{
+  "schema_version": "0.1",
+  "artifact_type": "sentence_jsonl",
+  "producer": {
+    "name": "ytcap",
+    "version": "0.3.0"
+  },
+  "identity": {
+    "video_id": "fixture001",
+    "language": "en",
+    "source": "manual"
+  },
+  "segmentation": {
+    "boundary_engine": "punctuation-v2",
+    "timing_estimator": "weighted-token-v1",
+    "time_quantum_decimals": 3
+  },
+  "playback_hint": {
+    "start_padding_seconds": 0.25,
+    "end_padding_seconds": 0.4
+  },
+  "input": {
+    "filename": "../subtitles/fixture001.en.manual.srt",
+    "format": "srt",
+    "sha256": "e2281779a80ef9463d58928e2bd53adf39cce80782b7856c84bc74c3eb346182"
+  },
+  "output": {
+    "filename": "fixture001.en.sentence.jsonl",
+    "sha256": "3366f931b6ab34b9936328f4660a350d8fe4dea51e5dafb418e5fa57db201e28",
+    "record_count": 2,
+    "schema_version": "0.1"
+  },
+  "metadata": {
+    "filename": "../videos/fixture001.info.json",
+    "sha256": "0bbc3b07fffa717d199294ce34bbc48714f36029275e83c2580c41a2dcf28f44"
+  },
+  "quality_summary": {
+    "cue_aligned": 0,
+    "estimated_start": 1,
+    "estimated_end": 1,
+    "estimated_both": 0,
+    "unknown": 0,
+    "empty_text": 0,
+    "non_positive_duration": 0,
+    "overlap_with_previous": 0,
+    "large_gap": 0,
+    "long_duration": 0
+  }
+}

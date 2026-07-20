@@ -7,7 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from . import __version__
-from .commands import batch, channel, export, inspect, playlist, video
+from .commands import batch, channel, export, inspect, playlist, verify, video
 from .errors import ErrorCode, YtcapError, format_error, format_error_json
 from .logging_config import configure_logging
 
@@ -42,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     inspect.configure_parser(subparsers.add_parser("inspect", help="inspect one video"))
     video.configure_parser(subparsers.add_parser("video", help="process one video"))
     export.configure_parser(subparsers.add_parser("export", help="convert subtitle files to JSONL"))
+    verify.configure_parser(subparsers.add_parser("verify", help="verify a sentence artifact"))
     batch.configure_parser(subparsers.add_parser("batch", help="process a batch file"))
     playlist.configure_parser(subparsers.add_parser("playlist", help="process a playlist"))
     channel.configure_parser(subparsers.add_parser("channel", help="process a channel"))

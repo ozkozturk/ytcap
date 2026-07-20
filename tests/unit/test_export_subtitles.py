@@ -393,30 +393,28 @@ class ExportSubtitlesTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
         self.assertIn("--category must not be empty", raised.exception.message)
 
-    def test_ambiguous_metadata_layout_rejects_before_writing(self) -> None:
+    def test_ambiguous_metadata_layout_exports_with_null_enrichment(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             subtitle_path = root / "input.srt"
             output_path = root / "jsonl" / "abc123.en.cue.jsonl"
             subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
 
-            with self.assertRaises(YtcapError) as raised:
-                export_subtitles(
-                    ExportSubtitlesOptions(
-                        input_path=subtitle_path,
-                        segments="cue",
-                        output_dir=root / "jsonl",
-                        video_id="abc123",
-                        language="en",
-                    )
+            export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path=subtitle_path,
+                    segments="cue",
+                    output_dir=root / "jsonl",
+                    video_id="abc123",
+                    language="en",
                 )
+            )
 
-            self.assertFalse(output_path.exists())
+            records = read_jsonl(output_path)
+            self.assertIsNone(records[0]["video_title"])
+            self.assertIsNone(records[0]["channel_id"])
 
-        self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
-        self.assertIn("could not infer standard output layout", raised.exception.message)
-
-    def test_missing_metadata_file_rejects_before_writing(self) -> None:
+    def test_missing_metadata_file_exports_with_null_enrichment(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             subtitle_path = root / "subtitles" / "abc123.en.manual.srt"
@@ -424,19 +422,17 @@ class ExportSubtitlesTest(unittest.TestCase):
             subtitle_path.parent.mkdir()
             subtitle_path.write_text(fixture_text("sample.en.srt"), encoding="utf-8")
 
-            with self.assertRaises(YtcapError) as raised:
-                export_subtitles(
-                    ExportSubtitlesOptions(
-                        input_path=subtitle_path,
-                        segments="cue",
-                        output_dir=root / "normalized",
-                    )
+            export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path=subtitle_path,
+                    segments="cue",
+                    output_dir=root / "normalized",
                 )
+            )
 
-            self.assertFalse(output_path.exists())
-
-        self.assertEqual(raised.exception.code, ErrorCode.INVALID_INPUT)
-        self.assertIn("metadata file not found", raised.exception.message)
+            records = read_jsonl(output_path)
+            self.assertIsNone(records[0]["video_title"])
+            self.assertIsNone(records[0]["available_manual_subtitles"])
 
     def test_invalid_metadata_json_rejects_before_writing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from ytcap.errors import ErrorCode, YtcapError
-from ytcap.exporters.jsonl_writer import write_cue_jsonl_file, write_sentence_jsonl_file
+from ytcap.exporters.jsonl_writer import write_cue_jsonl_file
 from ytcap.exporters.output_paths import infer_export_output_layout, normalized_file_path
+from ytcap.exporters.sentence_artifact import sentence_manifest_path, write_sentence_artifact
 from ytcap.models.export_enrichment import export_enrichment_fields, normalize_dataset_category
 from ytcap.models.subtitle import SubtitleCue, SubtitleSentence
 from ytcap.services.metadata_reader import read_metadata_json
@@ -39,6 +40,7 @@ class ExportedSubtitleFile:
     language: str
     source: str
     segment_count: int
+    manifest_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,7 @@ class _PreparedSubtitleExport:
     cues: tuple[SubtitleCue, ...]
     sentences: tuple[SubtitleSentence, ...] | None
     metadata_enrichment: dict[str, Any]
+    metadata_path: Path | None
     segment_count: int
 
 
@@ -178,11 +181,15 @@ def _validate_output_paths(jobs: tuple[_ExportSubtitleJob, ...]) -> None:
         seen[job.output_path] = job.input_path
 
     for job in jobs:
-        if job.output_path.exists():
+        paths = [job.output_path]
+        if job.output_path.name.endswith(".sentence.jsonl"):
+            paths.append(sentence_manifest_path(job.output_path))
+        existing_path = next((path for path in paths if path.exists()), None)
+        if existing_path is not None:
             raise YtcapError(
                 ErrorCode.OUTPUT_WRITE_FAILED,
                 (
-                    f"output file already exists '{job.output_path}'; "
+                    f"output file already exists '{existing_path}'; "
                     "remove it or choose another --out directory"
                 ),
                 exit_code=5,
@@ -195,7 +202,7 @@ def _prepare_subtitle_export(
     segments: str,
     category: str | None,
 ) -> _PreparedSubtitleExport:
-    metadata_enrichment = _metadata_enrichment_for_job(job, category=category)
+    metadata_enrichment, metadata_path = _metadata_enrichment_for_job(job, category=category)
     cues = tuple(_parse_subtitle_file(job.input_path))
     if segments == "cue":
         return _PreparedSubtitleExport(
@@ -203,6 +210,7 @@ def _prepare_subtitle_export(
             cues=cues,
             sentences=None,
             metadata_enrichment=metadata_enrichment,
+            metadata_path=metadata_path,
             segment_count=len(cues),
         )
 
@@ -212,6 +220,7 @@ def _prepare_subtitle_export(
         cues=cues,
         sentences=sentences,
         metadata_enrichment=metadata_enrichment,
+        metadata_path=metadata_path,
         segment_count=len(sentences),
     )
 
@@ -233,15 +242,18 @@ def _write_prepared_export(
             source=metadata.source,
             metadata_enrichment=prepared.metadata_enrichment,
         )
+        manifest_path = None
     else:
         sentences = prepared.sentences or ()
-        write_sentence_jsonl_file(
+        manifest_path = write_sentence_artifact(
             job.output_path,
             sentences,
+            source_path=job.input_path,
             video_id=str(metadata.video_id),
             language=str(metadata.language),
             source=metadata.source,
             metadata_enrichment=prepared.metadata_enrichment,
+            metadata_path=prepared.metadata_path,
         )
 
     return ExportedSubtitleFile(
@@ -251,6 +263,7 @@ def _write_prepared_export(
         language=str(metadata.language),
         source=metadata.source,
         segment_count=prepared.segment_count,
+        manifest_path=manifest_path,
     )
 
 
@@ -291,10 +304,23 @@ def _infer_metadata_from_filename(path: Path) -> _SubtitleFileMetadata:
     return _SubtitleFileMetadata(video_id=parts[0], language=parts[1], source="unknown")
 
 
-def _metadata_enrichment_for_job(job: _ExportSubtitleJob, *, category: str | None) -> dict[str, Any]:
-    layout = infer_export_output_layout(job.input_path, job.output_path.parent)
-    metadata = read_metadata_json(layout.metadata_path(str(job.metadata.video_id)))
-    return export_enrichment_fields(metadata, category=category)
+def _metadata_enrichment_for_job(
+    job: _ExportSubtitleJob,
+    *,
+    category: str | None,
+) -> tuple[dict[str, Any], Path | None]:
+    try:
+        layout = infer_export_output_layout(job.input_path, job.output_path.parent)
+    except YtcapError as exc:
+        if exc.code is not ErrorCode.INVALID_INPUT:
+            raise
+        return export_enrichment_fields({}, category=category), None
+
+    metadata_path = layout.metadata_path(str(job.metadata.video_id))
+    if not metadata_path.exists():
+        return export_enrichment_fields({}, category=category), None
+    metadata = read_metadata_json(metadata_path)
+    return export_enrichment_fields(metadata, category=category), metadata_path
 
 
 def _parse_subtitle_file(path: Path) -> list[SubtitleCue]:

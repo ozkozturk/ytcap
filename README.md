@@ -158,6 +158,31 @@ ytcap export --input ./data/subtitles/VIDEO_ID.en.manual.srt --segments cue --ca
 ytcap export --input ./data/subtitles --segments sentence --out ./data/normalized
 ```
 
+The sentence command produces the complete handoff bundle and can be verified
+before transfer:
+
+```bash
+ytcap export --input ./data/subtitles --segments sentence --out ./data/normalized
+ytcap verify --manifest ./data/normalized/VIDEO_ID.en.sentence.manifest.json
+```
+
+```text
+data/
+├── normalized/
+│   ├── VIDEO_ID.en.sentence.jsonl
+│   └── VIDEO_ID.en.sentence.manifest.json
+├── subtitles/
+│   └── VIDEO_ID.en.manual.srt
+└── videos/
+    └── VIDEO_ID.info.json
+```
+
+The sentence JSONL and its manifest are required sentence handoff artifacts.
+The metadata file is optional to ytcap export and supplies display enrichment;
+the original SRT/VTT is an optional audit artifact after export. A manual
+downstream workflow may still require the metadata file as its third handoff
+file.
+
 The `export` command reads existing `.srt` and `.vtt` files and writes enriched
 JSONL records to `{video_id}.{lang}.{segments}.jsonl` under the output
 directory. It infers `video_id`, language, and source from names such as
@@ -165,14 +190,21 @@ directory. It infers `video_id`, language, and source from names such as
 `"source":"unknown"`. `--video-id` and `--lang` may override metadata for a
 single file input.
 
-Export expects the matching normalized metadata file at
-`videos/{video_id}.info.json` in the standard output layout. Each JSONL record
-keeps the display `text`, adds a search-friendly `normalized_text`, and copies
-compact video, channel, available manual subtitle language, and downloaded
-subtitle language metadata from that file. English subtitle languages (`en` and
-`en-*`) are excluded from the subtitle language arrays. When `--category` is
-provided, JSONL records include `dataset_category` with that value and
-`category_source:"user"`; otherwise those fields are `null` and `"none"`.
+When `videos/{video_id}.info.json` exists in the standard output layout, each
+JSONL record keeps the display `text`, adds a search-friendly
+`normalized_text`, and copies compact video/channel and subtitle-language
+metadata from it. If the sidecar is absent, enrichment fields remain present
+with `null` values and track identity continues to come from the subtitle name
+or CLI overrides. English subtitle languages (`en` and `en-*`) are excluded
+from the subtitle language arrays. When `--category` is provided, JSONL records
+include `dataset_category` with that value and `category_source:"user"`;
+otherwise those fields are `null` and `"none"`.
+
+Sentence JSONL uses stable UTF-8/LF serialization and contains no run-varying
+timestamp or host path. Its companion manifest records the exact package and
+engine versions, source/output hashes, record count, logical filenames, track
+identity, and timing-quality counts. Manifest schema version `0.1` is separate
+from the backward-compatible sentence-row schema version `0.1`.
 
 Dynamic filename parts such as video ID, language, source, format, segment type,
 and run ID are validated before paths are built. Empty values, path separators,

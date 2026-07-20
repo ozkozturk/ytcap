@@ -51,3 +51,5 @@ def _print_result(result: ExportSubtitlesResult) -> None:
             f"JSONL written: {item.output_path} "
             f"({item.segment_count} records, {item.video_id}/{item.language}/{item.source})"
         )
+        if item.manifest_path is not None:
+            print(f"Manifest written: {item.manifest_path}")

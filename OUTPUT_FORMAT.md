@@ -264,16 +264,101 @@ derived from the fields above:
 
 Sentence records also include the common JSONL enrichment fields listed below.
 
+### Sentence Artifact Manifest
+
+Every sentence JSONL export is published with a required companion manifest:
+
+```text
+data/normalized/{video_id}.{lang}.sentence.manifest.json
+```
+
+The JSONL and manifest are staged as sibling temporary files, validated, and
+then published as a pair. An export failure does not leave an incomplete final
+pair. JSONL serialization is deterministic UTF-8: record order and object key
+order are stable, separators are compact, every record ends with LF (`\n`), and
+rows contain no timestamps, random identifiers, or host paths.
+
+Example manifest:
+
+```json
+{
+  "schema_version": "0.1",
+  "artifact_type": "sentence_jsonl",
+  "producer": {"name": "ytcap", "version": "0.3.0"},
+  "identity": {"video_id": "abc123", "language": "en", "source": "manual"},
+  "segmentation": {
+    "boundary_engine": "punctuation-v2",
+    "timing_estimator": "weighted-token-v1",
+    "time_quantum_decimals": 3
+  },
+  "playback_hint": {
+    "start_padding_seconds": 0.25,
+    "end_padding_seconds": 0.4
+  },
+  "input": {
+    "filename": "../subtitles/abc123.en.manual.srt",
+    "format": "srt",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "output": {
+    "filename": "abc123.en.sentence.jsonl",
+    "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "record_count": 123,
+    "schema_version": "0.1"
+  },
+  "metadata": {
+    "filename": "../videos/abc123.info.json",
+    "sha256": "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
+  },
+  "quality_summary": {
+    "cue_aligned": 100,
+    "estimated_start": 8,
+    "estimated_end": 10,
+    "estimated_both": 5,
+    "unknown": 0,
+    "empty_text": 0,
+    "non_positive_duration": 0,
+    "overlap_with_previous": 0,
+    "large_gap": 1,
+    "long_duration": 0
+  }
+}
+```
+
+Normative field rules:
+
+| Field | Required | Description |
+|---|---|---|
+| `schema_version` | Yes | Manifest schema version, currently `0.1` |
+| `artifact_type` | Yes | Always `sentence_jsonl` |
+| `producer` | Yes | Producer name and exact installed ytcap package version |
+| `identity` | Yes | Non-empty video ID/language and `manual`, `auto`, or `unknown` source |
+| `segmentation` | Yes | Boundary engine, timing estimator, and timestamp quantization versions |
+| `playback_hint` | Yes | Padding used for playback hints; exact sentence times remain in JSONL |
+| `input` | Yes | Logical/relative source filename, SRT/VTT format, and exact-byte SHA-256 |
+| `output` | Yes | Logical JSONL filename, exact-byte SHA-256, record count, and row schema version |
+| `metadata` | Yes | Logical metadata filename/hash, or two `null` values when unavailable |
+| `quality_summary` | Yes | Timing-precision counts and suspicious-record counts; records are reported, not discarded |
+
+Manifest `schema_version` evolves independently from the sentence-row schema.
+The manifest is new at version `0.1`; sentence JSONL remains at `0.1` because
+this change preserves every existing row field and adds no incompatible row
+meaning. Future manifest-only additions change the manifest version according
+to compatibility, without automatically changing JSONL rows.
+
 ## 7. Common JSONL Enrichment Fields
 
 The `export` command enriches cue-level and sentence-level JSONL records from
-the matching normalized metadata file:
+the matching normalized metadata file when it is available:
 
 ```text
 data/videos/{video_id}.info.json
 ```
 
-Missing fields inside that metadata JSON are represented as `null`.
+Missing metadata files and missing fields inside metadata JSON are represented
+by the existing enrichment fields with `null` values. Video ID, language,
+source, timing, sentence index, and text always come from the subtitle artifact
+and filename/CLI identity; display metadata is never used to invent identity.
 
 | Field | Type | Description |
 |---|---|---|

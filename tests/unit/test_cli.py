@@ -1011,6 +1011,24 @@ class CliTest(unittest.TestCase):
         options = mock_process.call_args_list[0].args[0]
         self.assertTrue(options.dry_run)
 
+    @patch("ytcap.commands.verify.verify_sentence_artifact")
+    def test_verify_command_reports_artifact_summary(self, mock_verify: object) -> None:
+        mock_verify.return_value = {
+            "identity": {"video_id": "abc123", "language": "en", "source": "manual"},
+            "output": {"filename": "abc123.en.sentence.jsonl", "record_count": 2},
+        }
+
+        exit_code, stdout, stderr = self.run_cli(
+            ["verify", "--manifest", "abc123.en.sentence.manifest.json"]
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("Verification complete.", stdout)
+        self.assertIn("Records: 2", stdout)
+        self.assertIn("abc123/en/manual", stdout)
+        mock_verify.assert_called_once_with("abc123.en.sentence.manifest.json")
+
 
 if __name__ == "__main__":
     unittest.main()

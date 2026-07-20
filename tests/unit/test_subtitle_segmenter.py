@@ -216,6 +216,19 @@ class SegmentCuesTest(unittest.TestCase):
             self.assertLessEqual(sentence.end, sentence.playback_end)
             previous_end = sentence.end
 
+    def test_overlapping_source_cues_preserve_overlapping_sentence_times(self) -> None:
+        sentences = segment_cues_into_sentences(
+            [
+                SubtitleCue(index=1, start=0.0, end=5.0, text="One."),
+                SubtitleCue(index=2, start=2.0, end=4.0, text="Two."),
+            ]
+        )
+
+        self.assertEqual(len(sentences), 2)
+        self.assertEqual(sentences[0].end, 5.0)
+        self.assertEqual(sentences[1].start, 2.0)
+        self.assertLess(sentences[1].start, sentences[0].end)
+
     def test_strong_gap_splits_unpunctuated_uppercase_continuation(self) -> None:
         sentences = segment_cues_into_sentences(
             [

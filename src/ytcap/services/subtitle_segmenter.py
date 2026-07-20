@@ -57,7 +57,6 @@ def segment_cues_into_sentences(cues: Sequence[SubtitleCue]) -> list[SubtitleSen
 
     junction_hints = _junction_hints(normalized_text, cue_spans)
     sentences: list[SubtitleSentence] = []
-    previous_end_seconds = 0.0
     for sentence_index, span in enumerate(
         find_sentence_spans(normalized_text, junction_hints),
         start=1,
@@ -68,9 +67,6 @@ def segment_cues_into_sentences(cues: Sequence[SubtitleCue]) -> list[SubtitleSen
 
         start_seconds = _boundary_seconds(touched_spans[0], span.start, normalized_text)
         end_seconds = _boundary_seconds(touched_spans[-1], span.end, normalized_text)
-        start_seconds = max(start_seconds, previous_end_seconds)
-        end_seconds = max(end_seconds, start_seconds)
-        previous_end_seconds = end_seconds
 
         start_seconds = quantize_time(start_seconds)
         end_seconds = quantize_time(end_seconds)

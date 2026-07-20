@@ -239,13 +239,13 @@ Rules:
 - Directory input with no supported subtitle files returns `INVALID_INPUT`.
 - Output files are written as `{video_id}.{lang}.{segments}.jsonl` under
   `--out`.
-- The matching normalized metadata file must exist at
+- A matching normalized metadata file may exist at
   `videos/{video_id}.info.json` in the standard output layout. For a subtitle
   input under `subtitles/`, the sibling `videos/` directory is used. For a
   single file outside `subtitles/`, `--out` should point at the standard
   `normalized/` directory so the sibling `videos/` directory can be found.
-- If neither the subtitle input nor `--out` identifies a standard output
-  layout, `export` returns `INVALID_INPUT` before writing JSONL.
+- When no standard output layout or metadata sidecar is available, the export
+  remains valid and existing enrichment fields are written as `null`.
 - Inferred or overridden `video_id` and language values must be safe filename
   parts. Unsafe values return `INVALID_INPUT` before writing any output.
 - Existing output files are not overwritten by default.
@@ -257,8 +257,8 @@ Rules:
 - `manual` and `auto` source markers are recognized case-insensitively.
 - If the file name omits source, JSONL records use `source` value `unknown`.
 - Missing fields inside the metadata JSON are represented as `null`.
-- Metadata files that are missing, unreadable, or invalid JSON fail before any
-  JSONL output is written.
+- A metadata file that exists but is unreadable or invalid JSON fails before
+  any JSONL output is written. A missing metadata file does not fail export.
 - Each JSONL record includes `normalized_text`, computed from the record's
   display `text` by lowercasing/casefolding, removing apostrophe-like
   characters, converting punctuation to spaces, and collapsing whitespace.
@@ -298,7 +298,26 @@ Rules:
   `start_char_in_first_cue`, `end_char_in_last_cue`, `boundary_engine`).
 - The legacy `timing_strategy` field (`cue_exact`, `cue_merge`,
   `heuristic`, `unknown`) is derived from those fields.
+- Sentence exports also write
+  `{video_id}.{lang}.sentence.manifest.json`. JSONL and manifest are validated
+  and atomically published as a pair. The manifest records logical paths,
+  source/output/metadata SHA-256 values, producer and engine versions, record
+  count, identity, and quality counts.
 - Advanced NLP packages and audio analysis are not used.
+
+### 5.1 `verify` Command
+
+Status: implemented for sentence artifact manifests.
+
+```bash
+ytcap verify --manifest ./data/normalized/VIDEO_ID.en.sentence.manifest.json
+```
+
+The command verifies JSONL hash and record count, identity consistency, row
+types and schema version, monotonic sentence indices, finite exact/playback
+timestamps, normalized text, boundary engine, and quality-summary counts. It
+also verifies source and metadata hashes when those referenced relative files
+are present.
 
 ## 6. `batch` Command
 
