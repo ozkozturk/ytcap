@@ -284,7 +284,7 @@ Example manifest:
 {
   "schema_version": "0.1",
   "artifact_type": "sentence_jsonl",
-  "producer": {"name": "ytcap", "version": "0.3.0"},
+  "producer": {"name": "ytcap", "version": "0.4.0"},
   "identity": {"video_id": "abc123", "language": "en", "source": "manual"},
   "segmentation": {
     "boundary_engine": "punctuation-v2",

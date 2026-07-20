@@ -9,7 +9,7 @@ It is designed for workflows where you have YouTube video URLs, video IDs, or pl
 The current public release is:
 
 ```text
-0.3.0
+0.4.0
 ```
 
 Release pages:
@@ -38,6 +38,8 @@ The current release includes:
 - `video` command metadata JSON writing and selected SRT/VTT subtitle file download.
 - SRT/VTT cue parsing, cue-level JSONL writer helpers, and basic sentence-level segmentation helpers.
 - `export` command conversion of existing SRT/VTT files to enriched cue-level or sentence-level JSONL.
+- Deterministic sentence JSONL/manifest artifact pairs with exact-byte hashes,
+  quality summaries, and `ytcap verify` validation.
 - `playlist` command to process videos inside a YouTube playlist with `--limit`, `--start`, and `--end` range controls, run manifest logging, `--resume`, `--skip-existing`, and `--dry-run`.
 - Safe validation for dynamic output filename parts to prevent path traversal from user input or extractor metadata.
 - English manual subtitle variant matching for `--lang en`, including `en-*`

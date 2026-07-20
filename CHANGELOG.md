@@ -6,6 +6,8 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-20
+
 ### Added
 
 - Sentence export now writes a deterministic, self-validating companion
