@@ -6,7 +6,32 @@ The format follows the spirit of "Keep a Changelog".
 
 ## [Unreleased]
 
-Nothing yet.
+## [0.3.0] - 2026-07-20
+
+### Added
+
+- Improved sentence-level export with a dependency-free sentence boundary
+  engine that avoids splitting abbreviations (`Dr.`, `Mr.`, `e.g.`, `etc.`),
+  decimals and version numbers (`3.14`, `v2.4.1`), domains and technical
+  names (`example.com`, `Node.js`, `Next.js`), and initials
+  (`J. R. R. Tolkien`, `U.S.`). Closing quotes and brackets after terminal
+  punctuation stay inside the sentence.
+- Sentence JSONL records now include `cue_coverage`, `timing_precision`,
+  padded `playback_start`/`playback_end` playback ranges, and cue provenance
+  fields (`start_cue_index`, `end_cue_index`, `cue_count`,
+  `start_char_in_first_cue`, `end_char_in_last_cue`, `boundary_engine`).
+- Cue-internal sentence boundaries are now estimated with weighted token
+  interpolation (word length and punctuation pause weights), with the
+  previous character-ratio approach kept as a fallback.
+- Strong cue gaps (over 0.6 s) can split unpunctuated text when the next cue
+  starts with an uppercase letter; well punctuated continuing sentences are
+  never split because of a gap.
+
+### Changed
+
+- The legacy `timing_strategy` sentence field is now derived from the new
+  `cue_coverage` and `timing_precision` fields with unchanged values
+  (`cue_exact`, `cue_merge`, `heuristic`, `unknown`).
 
 ## [0.2.0] - 2026-07-19
 
