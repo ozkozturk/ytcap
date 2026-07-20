@@ -208,33 +208,59 @@ data/normalized/{video_id}.{lang}.sentence.jsonl
 Example line:
 
 ```json
-{"schema_version":"0.1","type":"sentence","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":18.2,"text":"This is an example sentence.","normalized_text":"this is an example sentence","sentence_index":1,"timing_strategy":"heuristic","channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"],"dataset_category":"education","category_source":"user"}
+{"schema_version":"0.1","type":"sentence","video_id":"abc123","language":"en","source":"manual","start":12.4,"end":18.2,"text":"This is an example sentence.","normalized_text":"this is an example sentence","sentence_index":1,"timing_strategy":"heuristic","cue_coverage":"single","timing_precision":"estimated_end","playback_start":12.15,"playback_end":18.6,"start_cue_index":7,"end_cue_index":7,"cue_count":1,"start_char_in_first_cue":0,"end_char_in_last_cue":28,"boundary_engine":"punctuation-v2","channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=abc123","video_webpage_url":"https://www.youtube.com/watch?v=abc123","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"],"dataset_category":"education","category_source":"user"}
 ```
 
 Note:
 
-Sentence-level timing may not always be exact. A sentence can span multiple
-cues, or multiple sentences can share a single cue. The initial implementation
-uses a punctuation-based split on `.`, `?`, and `!`, then maps sentence spans
-back to cue timing with simple heuristics.
+Sentence boundaries are a textual estimate. Cue text is joined into one
+timeline, sentence character spans are detected with a dependency-free
+punctuation rule engine, and those spans are mapped back to cue timing.
 
-Possible `timing_strategy` values:
+- Cue-aligned boundaries use the source cue's own start/end time.
+- Cue-internal boundaries are approximated with weighted token
+  interpolation: words and punctuation receive approximate speaking-time
+  weights, and the boundary is placed proportionally inside the cue.
+- `playback_start` and `playback_end` add a small safety padding (about
+  0.25 s before and 0.40 s after) around the estimated sentence range for
+  clip playback. `playback_start` is clamped at `0`; `playback_end` is not
+  clipped because the video duration is unknown at segmentation time.
+- This is not word-level forced alignment; no audio analysis is performed.
 
-```text
-cue_exact
-cue_merge
-heuristic
-unknown
-```
+Fields:
 
-Meaning:
+| Field | Type | Description |
+|---|---|---|
+| `cue_coverage` | string | `single` when the sentence touches one cue, `multiple` otherwise |
+| `timing_precision` | string | How `start`/`end` were derived; see values below |
+| `playback_start` | number | Padded playback start in seconds |
+| `playback_end` | number | Padded playback end in seconds |
+| `start_cue_index` | number/null | Index of the first source cue the sentence touches |
+| `end_cue_index` | number/null | Index of the last source cue the sentence touches |
+| `cue_count` | number | How many source cues the sentence touches |
+| `start_char_in_first_cue` | number | Character offset of the sentence start inside the first cue's normalized text |
+| `end_char_in_last_cue` | number | Character offset of the sentence end inside the last cue's normalized text |
+| `boundary_engine` | string | Sentence boundary detector version, e.g. `punctuation-v2` |
+
+Possible `timing_precision` values:
 
 | Value | Description |
 |---|---|
-| `cue_exact` | One complete sentence maps to one complete subtitle cue |
-| `cue_merge` | One sentence spans more than one subtitle cue |
-| `heuristic` | A sentence occupies part of a cue, so timing is estimated |
-| `unknown` | The sentence boundary or timing quality is uncertain |
+| `cue_aligned` | Both boundaries match source cue start/end times |
+| `estimated_start` | The sentence starts inside its first cue |
+| `estimated_end` | The sentence ends inside its last cue |
+| `estimated_both` | Both boundaries fall inside their boundary cues |
+| `unknown` | The sentence has no terminal punctuation; timing quality is uncertain |
+
+The legacy `timing_strategy` field is kept for backward compatibility and is
+derived from the fields above:
+
+| `timing_strategy` | Derivation |
+|---|---|
+| `cue_exact` | `cue_coverage=single` and `timing_precision=cue_aligned` |
+| `cue_merge` | `cue_coverage=multiple` |
+| `heuristic` | `cue_coverage=single` with an estimated boundary |
+| `unknown` | `timing_precision=unknown` |
 
 Sentence records also include the common JSONL enrichment fields listed below.
 

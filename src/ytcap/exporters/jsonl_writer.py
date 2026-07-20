@@ -59,6 +59,16 @@ def sentence_jsonl_record(
         "normalized_text": normalize_search_text(sentence.text),
         "sentence_index": sentence.index,
         "timing_strategy": sentence.timing_strategy,
+        "cue_coverage": sentence.cue_coverage,
+        "timing_precision": sentence.timing_precision,
+        "playback_start": sentence.playback_start,
+        "playback_end": sentence.playback_end,
+        "start_cue_index": sentence.start_cue_index,
+        "end_cue_index": sentence.end_cue_index,
+        "cue_count": sentence.cue_count,
+        "start_char_in_first_cue": sentence.start_char_in_first_cue,
+        "end_char_in_last_cue": sentence.end_char_in_last_cue,
+        "boundary_engine": sentence.boundary_engine,
     }
     record.update(_metadata_enrichment_fields(metadata_enrichment))
     return record

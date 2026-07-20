@@ -1,16 +1,37 @@
-"""Subtitle sentence segmentation helpers."""
+"""Subtitle sentence segmentation orchestration.
+
+The segmentation pipeline keeps four responsibilities separate:
+
+1. Sentence boundary detection: :func:`find_sentence_spans` decides which
+   character offsets start and end a sentence inside the joined timeline
+   text.
+2. Cue-to-time mapping: each cue keeps its global character span, so a
+   sentence span maps back to the cues it touches.
+3. Timestamp estimation: :func:`estimate_cue_offset_seconds` places
+   cue-internal boundaries on the time axis with weighted token interpolation.
+4. Playback range: :func:`playback_range` pads the estimated sentence times
+   into a safe playback interval.
+"""
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from ytcap.models.subtitle import SubtitleCue, SubtitleSentence
-
-
-SENTENCE_RE = re.compile(r"[^.!?]+[.!?]+|[^.!?]+$")
-TERMINAL_PUNCTUATION = ".!?"
+from ytcap.services.sentence_boundaries import (
+    BOUNDARY_ENGINE,
+    CLOSING_CHARACTERS,
+    TERMINAL_RUN_CHARACTERS,
+    JunctionHint,
+    SentenceSpan,
+    find_sentence_spans,
+)
+from ytcap.services.sentence_timing import (
+    estimate_cue_offset_seconds,
+    playback_range,
+    quantize_time,
+)
 
 
 @dataclass(frozen=True)
@@ -21,12 +42,12 @@ class _CueTextSpan:
 
 
 def split_sentences(text: str) -> list[str]:
-    """Split text using a small punctuation-based heuristic."""
+    """Split text into sentences with the dependency-free boundary detector."""
 
     normalized_text = _normalize_text(text)
     if not normalized_text:
         return []
-    return [sentence for sentence, _, _ in _sentence_spans(normalized_text)]
+    return [span.text for span in find_sentence_spans(normalized_text)]
 
 
 def segment_cues_into_sentences(cues: Sequence[SubtitleCue]) -> list[SubtitleSentence]:
@@ -34,29 +55,46 @@ def segment_cues_into_sentences(cues: Sequence[SubtitleCue]) -> list[SubtitleSen
     if not normalized_text:
         return []
 
+    junction_hints = _junction_hints(normalized_text, cue_spans)
     sentences: list[SubtitleSentence] = []
-    for sentence_index, (sentence_text, start_offset, end_offset) in enumerate(
-        _sentence_spans(normalized_text),
+    previous_end_seconds = 0.0
+    for sentence_index, span in enumerate(
+        find_sentence_spans(normalized_text, junction_hints),
         start=1,
     ):
-        touched_spans = _overlapping_spans(cue_spans, start_offset, end_offset)
+        touched_spans = _overlapping_spans(cue_spans, span.start, span.end)
         if not touched_spans:
             continue
 
-        start_seconds = _seconds_for_offset(touched_spans[0], start_offset)
-        end_seconds = _seconds_for_offset(touched_spans[-1], end_offset)
+        start_seconds = _boundary_seconds(touched_spans[0], span.start, normalized_text)
+        end_seconds = _boundary_seconds(touched_spans[-1], span.end, normalized_text)
+        start_seconds = max(start_seconds, previous_end_seconds)
+        end_seconds = max(end_seconds, start_seconds)
+        previous_end_seconds = end_seconds
+
+        start_seconds = quantize_time(start_seconds)
+        end_seconds = quantize_time(end_seconds)
+        playback_start, playback_end = playback_range(start_seconds, end_seconds)
+
+        cue_coverage = "single" if len(touched_spans) == 1 else "multiple"
+        timing_precision = _timing_precision(span, touched_spans)
         sentences.append(
             SubtitleSentence(
                 index=sentence_index,
                 start=start_seconds,
                 end=end_seconds,
-                text=sentence_text,
-                timing_strategy=_timing_strategy(
-                    sentence_text,
-                    touched_spans,
-                    start_offset,
-                    end_offset,
-                ),
+                text=span.text,
+                timing_strategy=_legacy_timing_strategy(cue_coverage, timing_precision),
+                playback_start=quantize_time(playback_start),
+                playback_end=quantize_time(playback_end),
+                cue_coverage=cue_coverage,
+                timing_precision=timing_precision,
+                start_cue_index=touched_spans[0].cue.index,
+                end_cue_index=touched_spans[-1].cue.index,
+                cue_count=len(touched_spans),
+                start_char_in_first_cue=span.start - touched_spans[0].start,
+                end_char_in_last_cue=span.end - touched_spans[-1].start,
+                boundary_engine=BOUNDARY_ENGINE,
             )
         )
     return sentences
@@ -81,22 +119,26 @@ def _build_timeline_text(cues: Sequence[SubtitleCue]) -> tuple[str, list[_CueTex
     return "".join(text_parts), cue_spans
 
 
-def _sentence_spans(text: str) -> list[tuple[str, int, int]]:
-    spans: list[tuple[str, int, int]] = []
-    for match in SENTENCE_RE.finditer(text):
-        start, end = _trim_span(text, match.start(), match.end())
-        if start >= end:
-            continue
-        spans.append((text[start:end], start, end))
-    return spans
+def _junction_hints(text: str, cue_spans: Sequence[_CueTextSpan]) -> list[JunctionHint]:
+    hints: list[JunctionHint] = []
+    for current, following in zip(cue_spans, cue_spans[1:]):
+        hints.append(
+            JunctionHint(
+                offset=current.end,
+                gap_seconds=following.cue.start - current.cue.end,
+                next_starts_uppercase=_starts_with_uppercase(
+                    text[following.start : following.end]
+                ),
+            )
+        )
+    return hints
 
 
-def _trim_span(text: str, start: int, end: int) -> tuple[int, int]:
-    while start < end and text[start].isspace():
-        start += 1
-    while end > start and text[end - 1].isspace():
-        end -= 1
-    return start, end
+def _starts_with_uppercase(text: str) -> bool:
+    for character in text:
+        if character.isalpha():
+            return character.isupper()
+    return False
 
 
 def _overlapping_spans(
@@ -107,29 +149,40 @@ def _overlapping_spans(
     return [span for span in cue_spans if span.start < end and span.end > start]
 
 
-def _seconds_for_offset(span: _CueTextSpan, offset: int) -> float:
-    cue_length = span.end - span.start
-    if cue_length <= 0:
-        return span.cue.start
-
-    relative_offset = min(max(offset - span.start, 0), cue_length)
-    ratio = relative_offset / cue_length
-    return span.cue.start + ((span.cue.end - span.cue.start) * ratio)
+def _boundary_seconds(span: _CueTextSpan, offset: int, timeline_text: str) -> float:
+    cue_text = timeline_text[span.start : span.end]
+    return estimate_cue_offset_seconds(span.cue, cue_text, offset - span.start)
 
 
-def _timing_strategy(
-    sentence_text: str,
-    touched_spans: Sequence[_CueTextSpan],
-    start_offset: int,
-    end_offset: int,
-) -> str:
-    if not sentence_text.endswith(tuple(TERMINAL_PUNCTUATION)):
+def _timing_precision(span: SentenceSpan, touched_spans: Sequence[_CueTextSpan]) -> str:
+    if not _ends_with_terminal(span.text):
         return "unknown"
-    if len(touched_spans) > 1:
-        return "cue_merge"
+    start_aligned = span.start == touched_spans[0].start
+    end_aligned = span.end == touched_spans[-1].end
+    if start_aligned and end_aligned:
+        return "cue_aligned"
+    if start_aligned:
+        return "estimated_end"
+    if end_aligned:
+        return "estimated_start"
+    return "estimated_both"
 
-    span = touched_spans[0]
-    if start_offset == span.start and end_offset == span.end:
+
+def _ends_with_terminal(text: str) -> bool:
+    index = len(text) - 1
+    while index >= 0 and text[index] in CLOSING_CHARACTERS:
+        index -= 1
+    return index >= 0 and text[index] in TERMINAL_RUN_CHARACTERS
+
+
+def _legacy_timing_strategy(cue_coverage: str, timing_precision: str) -> str:
+    """Derive the backward-compatible ``timing_strategy`` value."""
+
+    if timing_precision == "unknown":
+        return "unknown"
+    if cue_coverage == "multiple":
+        return "cue_merge"
+    if timing_precision == "cue_aligned":
         return "cue_exact"
     return "heuristic"
 

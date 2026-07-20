@@ -243,10 +243,17 @@ Example cue-level JSONL line:
 {"schema_version":"0.1","type":"cue","video_id":"VIDEO_ID","language":"en","source":"manual","start":1.0,"end":3.5,"text":"Example subtitle text.","normalized_text":"example subtitle text","cue_index":1,"channel_id":"channel123","channel_name":"Example Channel","channel_url":"https://www.youtube.com/channel/channel123","video_title":"Example Video","video_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_webpage_url":"https://www.youtube.com/watch?v=VIDEO_ID","video_duration_seconds":320,"video_upload_date":"20260101","available_manual_subtitles":["tr"],"downloaded_subtitles":["tr"],"dataset_category":"education","category_source":"user"}
 ```
 
-Sentence-level segmentation uses a simple standard-library heuristic that
-splits on `.`, `?`, and `!`. Timing is marked with a strategy such as
-`cue_exact`, `cue_merge`, `heuristic`, or `unknown` because sentence boundaries
-can fall inside or across subtitle cues.
+Sentence-level segmentation uses a dependency-free punctuation rule engine
+that keeps abbreviations (`Dr.`, `e.g.`), decimals and versions (`3.14`,
+`v2.4.1`), domains and technical names (`example.com`, `Node.js`), and
+initials (`J. R. R. Tolkien`, `U.S.`) from being split. Cue-internal sentence
+boundaries are approximated with weighted token interpolation, and each
+sentence record carries a padded `playback_start`/`playback_end` range plus
+cue provenance fields, so consumers can play a sentence as a tight clip.
+Timing is marked with `cue_coverage`, `timing_precision`, and the
+backward-compatible `timing_strategy` (`cue_exact`, `cue_merge`, `heuristic`,
+or `unknown`) because sentence boundaries can fall inside or across subtitle
+cues. No NLP packages or audio analysis are used.
 
 ## Documentation
 

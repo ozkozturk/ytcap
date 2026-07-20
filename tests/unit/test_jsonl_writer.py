@@ -39,6 +39,16 @@ def sample_sentences() -> list[SubtitleSentence]:
             end=3.5,
             text="Hello.",
             timing_strategy="cue_exact",
+            playback_start=0.75,
+            playback_end=3.9,
+            cue_coverage="single",
+            timing_precision="cue_aligned",
+            start_cue_index=1,
+            end_cue_index=1,
+            cue_count=1,
+            start_char_in_first_cue=0,
+            end_char_in_last_cue=6,
+            boundary_engine="punctuation-v2",
         ),
         SubtitleSentence(
             index=2,
@@ -46,6 +56,16 @@ def sample_sentences() -> list[SubtitleSentence]:
             end=6.0,
             text="Second sentence.",
             timing_strategy="heuristic",
+            playback_start=4.0,
+            playback_end=6.4,
+            cue_coverage="single",
+            timing_precision="estimated_start",
+            start_cue_index=2,
+            end_cue_index=2,
+            cue_count=1,
+            start_char_in_first_cue=5,
+            end_char_in_last_cue=21,
+            boundary_engine="punctuation-v2",
         ),
     ]
 
@@ -83,6 +103,16 @@ class JsonlWriterTest(unittest.TestCase):
                 end=3.5,
                 text="Hello.",
                 timing_strategy="cue_exact",
+                playback_start=0.75,
+                playback_end=3.9,
+                cue_coverage="single",
+                timing_precision="cue_aligned",
+                start_cue_index=1,
+                end_cue_index=1,
+                cue_count=1,
+                start_char_in_first_cue=0,
+                end_char_in_last_cue=6,
+                boundary_engine="punctuation-v2",
             ),
             video_id="abc123",
             language="en",
@@ -103,6 +133,16 @@ class JsonlWriterTest(unittest.TestCase):
                 "normalized_text": "hello",
                 "sentence_index": 1,
                 "timing_strategy": "cue_exact",
+                "cue_coverage": "single",
+                "timing_precision": "cue_aligned",
+                "playback_start": 0.75,
+                "playback_end": 3.9,
+                "start_cue_index": 1,
+                "end_cue_index": 1,
+                "cue_count": 1,
+                "start_char_in_first_cue": 0,
+                "end_char_in_last_cue": 6,
+                "boundary_engine": "punctuation-v2",
             },
         )
 
@@ -178,7 +218,14 @@ class JsonlWriterTest(unittest.TestCase):
             self.assertEqual(first["type"], "sentence")
             self.assertEqual(first["sentence_index"], 1)
             self.assertEqual(first["timing_strategy"], "cue_exact")
+            self.assertEqual(first["cue_coverage"], "single")
+            self.assertEqual(first["timing_precision"], "cue_aligned")
+            self.assertEqual(first["playback_start"], 0.75)
+            self.assertEqual(first["playback_end"], 3.9)
+            self.assertEqual(first["start_cue_index"], 1)
+            self.assertEqual(first["boundary_engine"], "punctuation-v2")
             self.assertEqual(second["text"], "Second sentence.")
+            self.assertEqual(second["timing_precision"], "estimated_start")
 
     def test_write_cue_jsonl_file_rejects_existing_output_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

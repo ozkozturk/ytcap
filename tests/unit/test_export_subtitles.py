@@ -154,6 +154,100 @@ class ExportSubtitlesTest(unittest.TestCase):
             self.assertEqual(records[0]["channel_id"], "channel123")
             self.assertIn("timing_strategy", records[0])
 
+    def test_sentence_export_handles_mid_cue_boundaries(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "subtitles" / "midcue001.en.manual.srt"
+            subtitle_path.parent.mkdir()
+            subtitle_path.write_text(fixture_text("midcue001.en.manual.srt"), encoding="utf-8")
+            write_metadata(root, "midcue001")
+
+            result = export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path=subtitle_path,
+                    segments="sentence",
+                    output_dir=root / "normalized",
+                )
+            )
+
+            output_path = root / "normalized" / "midcue001.en.sentence.jsonl"
+            records = read_jsonl(output_path)
+            self.assertEqual(result.files[0].segment_count, 3)
+            self.assertEqual(len(records), 3)
+
+            first, second, third = records
+            self.assertEqual(first["text"], "than here.")
+            self.assertEqual(first["cue_coverage"], "single")
+            self.assertEqual(first["timing_precision"], "estimated_both")
+
+            self.assertEqual(
+                second["text"],
+                'And none of us can say "Boo," because none of us have ever been to prison.',
+            )
+            self.assertEqual(second["cue_coverage"], "multiple")
+            self.assertEqual(second["timing_precision"], "estimated_both")
+            self.assertEqual(second["cue_count"], 3)
+            self.assertEqual(second["start_cue_index"], 1)
+            self.assertEqual(second["end_cue_index"], 3)
+            self.assertGreater(second["start"], 1.0)
+            self.assertLess(second["start"], 3.5)
+            self.assertGreater(second["end"], 8.3)
+            self.assertLess(second["end"], 11.0)
+            self.assertLessEqual(second["playback_start"], second["start"])
+            self.assertGreaterEqual(second["playback_end"], second["end"])
+
+            self.assertEqual(
+                third["text"],
+                "The next sentence starts right here and ends now.",
+            )
+            self.assertEqual(third["timing_precision"], "estimated_start")
+            self.assertEqual(third["end"], 14.0)
+
+            starts = [record["start"] for record in records]
+            ends = [record["end"] for record in records]
+            for index in range(len(records)):
+                self.assertLessEqual(starts[index], ends[index])
+                if index > 0:
+                    self.assertGreaterEqual(starts[index], ends[index - 1])
+
+    def test_sentence_export_handles_abbreviations_and_technical_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subtitle_path = root / "subtitles" / "techtalk01.en.manual.srt"
+            subtitle_path.parent.mkdir()
+            subtitle_path.write_text(fixture_text("techtalk01.en.manual.srt"), encoding="utf-8")
+            write_metadata(root, "techtalk01")
+
+            result = export_subtitles(
+                ExportSubtitlesOptions(
+                    input_path=subtitle_path,
+                    segments="sentence",
+                    output_dir=root / "normalized",
+                )
+            )
+
+            output_path = root / "normalized" / "techtalk01.en.sentence.jsonl"
+            records = read_jsonl(output_path)
+            self.assertEqual(result.files[0].segment_count, 4)
+            self.assertEqual(
+                [record["text"] for record in records],
+                [
+                    "Dr. Smith explained Node.js today.",
+                    "We use v2.4.1 and React.js, e.g. in class.",
+                    "Visit example.com for details.",
+                    "Mr. Brown agreed.",
+                ],
+            )
+            self.assertEqual(records[0]["timing_precision"], "cue_aligned")
+            self.assertEqual(records[1]["timing_precision"], "cue_aligned")
+            self.assertEqual(records[2]["timing_precision"], "estimated_end")
+            self.assertEqual(records[3]["timing_precision"], "estimated_start")
+            self.assertEqual(records[2]["normalized_text"], "visit example com for details")
+            for record in records:
+                self.assertEqual(record["boundary_engine"], "punctuation-v2")
+                self.assertLessEqual(record["playback_start"], record["start"])
+                self.assertGreaterEqual(record["playback_end"], record["end"])
+
     def test_directory_export_processes_supported_files_sorted(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

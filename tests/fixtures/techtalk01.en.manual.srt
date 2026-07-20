@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:04,000
+Dr. Smith explained Node.js today.
+
+2
+00:00:04,500 --> 00:00:08,000
+We use v2.4.1 and React.js, e.g. in class.
+
+3
+00:00:08,500 --> 00:00:12,000
+Visit example.com for details. Mr. Brown agreed.

@@ -281,11 +281,24 @@ Rules:
 
 `sentence` segments:
 
-- Text is split into sentences.
-- Initial splitting uses `.`, `?`, and `!` punctuation.
-- Timing is matched with simple heuristics and marked with `cue_exact`,
-  `cue_merge`, `heuristic`, or `unknown`.
-- Advanced NLP packages are not used.
+- Text is split into sentences with a dependency-free punctuation rule
+  engine that handles common abbreviations (`Dr.`, `e.g.`, `etc.`),
+  decimals and versions (`3.14`, `v2.4.1`), domains and technical names
+  (`example.com`, `Node.js`), initials (`J. R. R. Tolkien`, `U.S.`), and
+  keeps closing quotes/brackets inside the sentence.
+- Cue gaps act only as an auxiliary signal: a strong gap (over 0.6 s) can
+  split text without terminal punctuation when the next cue starts with an
+  uppercase letter, but a well punctuated continuing sentence is never
+  split because of a gap.
+- Cue-internal boundaries are approximated with weighted token
+  interpolation; cue-aligned boundaries keep the source cue's own time.
+- Each record carries `cue_coverage`, `timing_precision`, padded
+  `playback_start`/`playback_end`, and cue provenance fields
+  (`start_cue_index`, `end_cue_index`, `cue_count`,
+  `start_char_in_first_cue`, `end_char_in_last_cue`, `boundary_engine`).
+- The legacy `timing_strategy` field (`cue_exact`, `cue_merge`,
+  `heuristic`, `unknown`) is derived from those fields.
+- Advanced NLP packages and audio analysis are not used.
 
 ## 6. `batch` Command
 
